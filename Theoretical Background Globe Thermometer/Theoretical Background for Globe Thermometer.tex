@@ -94,25 +94,7 @@ Employing similar reasoning, we easily find that both \eqref{eq:first-condition}
 \end{equation}
 Which is in agreement with relevant literature. A recommended formula for $h$ is given by McAdams (1954).
 
-\section{Non-Equilibrium States}
-In the specific case of our project, environment factors like air temperature, wind-speed, solar-angle, ... will be ever changing. Therefore, analysis of how we reach our equilibrium is warranted. Using the grey globe thermometer, the change in heat over time is 
-$$
-\dot{Q} = A\left[a_g\sigma T^4_{\text{MRT}} - \epsilon_g\sigma T^4_g - h\left(T_g - T_a\right)\right]
-$$ 
-We'll start by only assuming $T_g$ is a time dependent quantity. Following basic thermodynamics, we find that
-$$
-\dot{Q} = C_V \dot{T}
-$$
-Performing separation of variables we find that
-$$
-\int_{T_i}^{T_f}\frac{dT_g}{a_g\sigma T^4_{\text{MRT}} - \epsilon_g\sigma T^4_g - h\left(T_g - T_a\right)} = \int_{t_i}^{t_f} \frac{A}{C_V}dt = \frac{A}{C_V}\Delta t
-$$
 
-\subsection{Simulations}
-Maybe we could simulate this
-\\
-
-A quick simulation, with arbitrary but semi realistic values, seems to be in agreement with the stated. We should keep in mind that this is would essentially simulate the change in temperature of the globe itself. Our response time, however, depends on how fast the air inside the globe thermometer can adjust. We can easily account for this. Assuming the final globe temperature $T_g$ won't be, at any time during the process, radically different from the initial air temperature inside our globe thermometer, we are justified to use conduction as the dominant heat transfer mechanism. This can be easily added to the simulation.
 
 \section{Spectral Emmisivity}
 \subsection{Definition}
@@ -251,4 +233,70 @@ Considering that $T$, $\lambda$, $C_1$ and $C_2$ are all non-negative variables 
 \end{equation}
 The partial derivative is necessarily greater than zero. Therefore, if $T$ increases, $E_B$ will also increase. Now, if $T_g > T_a$, than the integral should provide a positive contribution, which is only possible, as we just showed, if $T_{\text{MRT}}>T_g$. For the special case were the spectral emmisivity of our globe matches that of the human body, all the physical constraints\footnote{We note that the constraints \eqref{eq:first-condition} and \eqref{eq:second-condition} have less to do with the MRT, and more to do with the temperature at equilibrium. These conditions essentially tell us that the equilibrium temperature, when convection is present, should be bigger or smaller than the temperature when no convection is present. The fact that we kept finding this constraint in terms of MRT is because the equilibrium temperature, without convection, was thus far always the MRT.} \eqref{eq:zeroth-condition}, \eqref{eq:first-condition} and \eqref{eq:second-condition} are met.
 
+
+\section{Non-Equilibrium States}
+\subsection{Shell Simulation}
+In the specific case of our project, environment factors like air temperature, wind-speed, solar-angle, ... will be ever changing. Therefore, analysis of how we reach our equilibrium is warranted. Using the idealized grey globe thermometer, the change in heat over time is 
+$$
+\dot{Q}_g = A\left[a_g\sigma T^4_{\text{MRT}} - \epsilon_g\sigma T^4_g - h\left(T_g - T_a\right)\right]
+$$ 
+We'll start by only assuming $T_g$ is a time dependent quantity. Following basic thermodynamics, we find that
+$$
+\dot{Q}_g = C_{P,g} \dot{T}_g = \rho_gV_gc_{P,g} \dot{T}_g 
+$$
+Where $\rho_g$ is the density of the globe, $V_g$ the volume of the globe and $c_{P,g}$ the specific isobaric heat capacity. Note that $\left[c_{P,g}\right] = \unit{\joule\per\kg\per\kelvin}$. By combining these two expression, we find that
+$$
+\dot{T}_g = \frac{A}{\rho_gV_gc_{P,g}}\left[a_g\sigma T^4_{\text{MRT}} - \epsilon_g\sigma T^4_g - h\left(T_g - T_a\right)\right]
+$$
+Which can be easily simulated through integration schemes. Specifically, to study the response time of our $T_g$, we can impose a synthetic 'true' $T_{\text{MRT}}$. By setting $T_{\text{MRT}}$ to a specific realistic value, we can simulated how long it takes our globe to effectively reproduce this temperature (where we use \eqref{eq:ideal-grey} to actually obtain $T_{\text{MRT}}$).
+\\
+
+Additionally, by imposing a synthetic $T_{\text{MRT}}(t)$ function that changes over time, we can simulate how our MRT estimate changes based on the environment. For example, when moving from a shady to a sunny spot, we expect our true MRT to significantly increase. If we want to simulate how our MRT estimate changes when moving from a shady to a sunny spot, we can create $T_{\text{MRT}}(t)$ such that it reflects this sudden spike.
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.75\textwidth]{First-shell-only-simulation.png}
+	\caption{Illustrative simulation for MRT estimates. For this simulation we chose the following constants: wind speed $V_a = 10\unit{\meter\per\second}$, air temperature $T_a = 288 \unit{\kelvin}$, globe diameter $D = 0.15\unit{\meter}$, globe density (copper) $\rho_g = 8960 \unit{\kilogram \per\meter\cubed}$, globe emmisivity $\epsilon_{g} = 0.95$, isobaric specific heat capacity (copper) $c_{P,g} = 385 \unit{\joule \per\kilogram\per\kelvin}$ and volume (shell thickness $0.5\unit{\milli\meter}$) $V_g = 1.41 \cdot 10^{-4}\unit{\meter\cubed}$. We assumed the starting temperature of the globe was the same as the air.}
+	\label{fig:first-shell-only-simulation}
+\end{figure}
+Figure \ref{fig:first-shell-only-simulation}  is one such simulation. Although slightly unrealistic in the continued increase of the true MRT between minute 40 and 75, it might still represent a run through a forest area, followed by a mountainous area where we steady get higher in the atmosphere and green vegetation is replaced with more reflective green rock. At the end, we could imagine the subject standing still in the same stop. This simulation illustrates the ability of this method to study both the response time in a changing and static environment. \textbf{This simulation was done numerically, and used an implicit integration scheme to account for the possible stiffness of the true MRT function.}
+
+\subsection{Realistic Simulation}
+Up until now, we essentially viewed our globe temperature as the temperature the shell of our globe thermometer has. Figure \ref{fig:first-shell-only-simulation} thus simulated the shell temperature. However, a rigorous discussing of the air inside our globe thermometer is needed. After all, we measure the air temperature inside the shell $T_i$, and not the shell temperature directly. For MRT measurements in static (or very slowly varying) environments, we can assume that enough time has passed such that the air inside has the same temperature as the shell. This follows from the fact that equilibrium for the air inside (assuming a perfectly closed shell) is reached when the temperature of air is the same as that of the globe.
+\\
+
+However, when the true MRT changes, the air temperature inside the shell must first adequately change to get an accurate estimate. For this, imagine again we move from a shady to a sunny area such that our true MRT spikes. The environment will than first heat up the shell, which in turn has the heat up the air inside. This means that the simulation from figure \ref{fig:first-shell-only-simulation} represents an idealized situation, and in actuality our measured air temperature will adapt more slowly and MRT estimates will even more inaccurate. We now introduce this effect into our simulation. From now on, globe temperature $T_g$ is specifically meant to represent the shell temperature (or the actual 'globe' part of the thermometer).
+\\
+
+In the context of this bachelorproject, the globe thermometers will be constantly moving due to the nature of how people run. We can  therefore, confidently, assume that the air inside the globe is uniformly mixed at all times and the temperature evenly spread. In this case, we the change in heat over time for the air inside is given by
+$$
+\dot{Q}_i = A_ih_i(T_g - T_i) = n_ic_{V,i} \dot{T}_i
+$$
+With $A_i$ the surface of the inside of the shell and $h_i$ the convective heat transfer coefficient for the air inside. Note that we use the specific isochoric heat capacity now, because of this we must know the moles of air $n_i$ inside the globe (which we can find using the volume, density and molar mass).
+\\
+
+In order to heat up, or cool down, the air inside, there must be heat transfer between the globe and the air. Thus, we need to account for this exchange in \eqref{eq:ideal-grey}, we find that
+$$\dot{Q}_g = A\left(a_g\sigma T^4_{\text{MRT}} - \epsilon_g\sigma T^4_g - h(T_g - T_a)\right) - A_ih_i(T_g - T_i) = \rho_gV_gc_{P,g} \dot{T}_g 
+$$
+All together we find the coupled set of equations
+\begin{equation}\label{eq:realistic-simulation}
+	\boxed{
+	\left\{
+	\begin{aligned}
+		\dot{T}_i &= \frac{A_ih_i}{n_ic_{V,i}}(T_g - T_i) \\
+		\dot{T}_g &= \frac{1}{\rho_gV_gc_{P,g}}\left[A\left(a_g\sigma T^4_{\text{MRT}} - \epsilon_g\sigma T^4_g - h(T_g - T_a)\right) - A_ih_i(T_g - T_i)\right]
+	\end{aligned}
+	\right.
+	}
+\end{equation}
+Using these equations, we numerically simulate, figure \ref{fig:shell-and-air-simulation}, the estimated MRT with the same synthetic true MRT function as figure \ref{fig:first-shell-only-simulation}.
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.75\textwidth]{Shell-and-air-simulation.png}
+	\caption{Illustrative simulation for both inner air and shell. The simulated conditions were the same as figure \ref{fig:first-shell-only-simulation}. The inner temperature closely follows the globe temperature. For this simulation, we choose $h_i = 7 \unit{\joule\per\second\per\meter\squared\per\kelvin}$, which is a very conservative estimate. Higher $h_i$ yield faster adaptions of the inner air, and thus realistically the inner air follows the globe temperature even more closely.}
+	\label{fig:shell-and-air-simulation}
+\end{figure}
+We see that the inner air temperature closely follows the globe temperature. We note that, in some sense, this is a worst case scenario simulation. Since the convective heat transfer coefficient $h_i$ has been chosen very conservatively. Depending on the running speed, this value can significantly increase, yielding faster changes in inner air temperature. Realistically, the inner air will thus even more closely follow the globe temperature. Still, we suggest to take this effect into account.
+
+\subsection{Recreating the true MRT function}
+From our simulations we see that direct estimation with our equation \eqref{eq:ideal-grey} isn't accurate. However, we do know that measurements are unique defined by the true MRT function. If we assume the through MRT has some form, e.g. a linear combination of basis functions, we might be able to numerically fit the coefficients of this form to best reproduce the measured data through simulation. So we estimate the coefficients of the true MRT function, we simulate our estimate using these coefficients, and we compare with the actual data. If the simulation matches, we have a good fit, otherwise we try finding better coefficients. My current though is the use either an $n$-order polynomial (so $n$ coefficients) or a fourier series.
 \end{document}
