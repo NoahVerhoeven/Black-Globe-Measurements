@@ -260,7 +260,7 @@ Additionally, by imposing a synthetic $T_{\text{MRT}}(t)$ function that changes 
 \end{figure}
 Figure \ref{fig:first-shell-only-simulation}  is one such simulation. Although slightly unrealistic in the continued increase of the true MRT between minute 40 and 75, it might still represent a run through a forest area, followed by a mountainous area where we steady get higher in the atmosphere and green vegetation is replaced with more reflective green rock. At the end, we could imagine the subject standing still in the same stop. This simulation illustrates the ability of this method to study both the response time in a changing and static environment. \textbf{This simulation was done numerically, and used an implicit integration scheme to account for the possible stiffness of the true MRT function.}
 
-\subsection{Realistic Simulation}
+\subsection{Inner Temperature Simulation}
 Up until now, we essentially viewed our globe temperature as the temperature the shell of our globe thermometer has. Figure \ref{fig:first-shell-only-simulation} thus simulated the shell temperature. However, a rigorous discussing of the air inside our globe thermometer is needed. After all, we measure the air temperature inside the shell $T_i$, and not the shell temperature directly. For MRT measurements in static (or very slowly varying) environments, we can assume that enough time has passed such that the air inside has the same temperature as the shell. This follows from the fact that equilibrium for the air inside (assuming a perfectly closed shell) is reached when the temperature of air is the same as that of the globe.
 \\
 
@@ -292,11 +292,18 @@ Using these equations, we numerically simulate, figure \ref{fig:shell-and-air-si
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.75\textwidth]{Shell-and-air-simulation.png}
-	\caption{Illustrative simulation for both inner air and shell. The simulated conditions were the same as figure \ref{fig:first-shell-only-simulation}. The inner temperature closely follows the globe temperature. For this simulation, we choose $h_i = 7 \unit{\joule\per\second\per\meter\squared\per\kelvin}$, which is a very conservative estimate. Higher $h_i$ yield faster adaptions of the inner air, and thus realistically the inner air follows the globe temperature even more closely.}
+	\caption{Illustrative simulation for both inner air and shell. The simulated conditions were the same as figure \ref{fig:first-shell-only-simulation}. The inner temperature closely follows the globe temperature. For this simulation, we choose $h_i = 7 \unit{\joule\per\second\per\meter\squared\per\kelvin}$, which is a very conservative estimate. Higher $h_i$ yield faster adaptions of the inner air, and thus realistically the inner air follows the globe temperature even more closely. \textbf{The inner and shell temperature are labeled wrong, and should be swapped. So the dashed line is the globe temperature and the full-line is the inner temperature.}}
 	\label{fig:shell-and-air-simulation}
 \end{figure}
 We see that the inner air temperature closely follows the globe temperature. We note that, in some sense, this is a worst case scenario simulation. Since the convective heat transfer coefficient $h_i$ has been chosen very conservatively. Depending on the running speed, this value can significantly increase, yielding faster changes in inner air temperature. Realistically, the inner air will thus even more closely follow the globe temperature. Still, we suggest to take this effect into account.
 
-\subsection{Recreating the true MRT function}
+\subsection{Verification of Simulation Model Through Response Times}
+In the paper "Assessment of black globe thermometers employing various sensors and alternative materials" they set out to study how various materials, sensors and diameters might influence MRT measurements. A key part of this investigation was finding the response time of each setup. We use these results to verify if they match the response times obtained through our simulation model \eqref{eq:realistic-simulation}.
+\\
+
+To achieve this, we use the response times obtained from the IR sensor. This sensor has a reported accuracy of $\pm 0.5\unit{\kelvin}$. We therefore determine the simulated 'response' by checking when our estimated MRT is within 0.5 of the true MRT. (now include the figures)
+
+
+\section{Recreating the true MRT function}
 From our simulations we see that direct estimation with our equation \eqref{eq:ideal-grey} isn't accurate. However, we do know that measurements are unique defined by the true MRT function. If we assume the through MRT has some form, e.g. a linear combination of basis functions, we might be able to numerically fit the coefficients of this form to best reproduce the measured data through simulation. So we estimate the coefficients of the true MRT function, we simulate our estimate using these coefficients, and we compare with the actual data. If the simulation matches, we have a good fit, otherwise we try finding better coefficients. My current though is the use either an $n$-order polynomial (so $n$ coefficients) or a fourier series.
 \end{document}

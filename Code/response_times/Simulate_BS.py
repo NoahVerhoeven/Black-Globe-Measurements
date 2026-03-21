@@ -5,7 +5,7 @@ from matplotlib import cm
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp, quad
-from Simulations import dTdt, grey_body_MRT_estimate
+from mrt_tools import dTdt, grey_body_MRT_estimate
 import matplotlib as mpl
 
 mpl.rcParams['font.family'] = 'Times New Roman'
@@ -32,13 +32,13 @@ c_i = 20.850 # Specific heat capacity of the inner part (air) [J/mol*K]
 D_i = D - thickness
 V_i = quad(lambda r: 4 * np.pi * r ** 2, 0, D_i/2)[0] # Volume of the inner part [m3]
 A_i = 4 * np.pi * (D_i / 2) ** 2 # Inner surface area of the globe [m2]
-h_i = 1
+h_i = 7
 n_i = rho_i * V_i / M_i # Number of moles of the inner part [mol]
 constant_i = c_i * n_i # [J/K]
 
 
 def MRT(t):
-    return 350
+    return 325
 
 
 sol = solve_ivp(dTdt, [0, minutes*60], [288, 288], args=(MRT, h, T_a, epsilon, constant, A, A_i, h_i, constant_i), method="Radau", t_eval=np.linspace(0, minutes*60, 1000)) # Implicite method to acount for stiffness
@@ -47,11 +47,16 @@ inner_temp = sol.y[0]
 shell_temp = sol.y[1]
 
 fig, axis  = plt.subplots(2, 1, figsize=(8,7), sharex=True)
-fig.suptitle("Simulated MRT Estimates from Globe Temperature", fontsize=16, fontweight="bold")
+fig.suptitle("Simulation Model Verification: Stainless Steel (100 mm)", fontsize=16, fontweight="bold")
+
+response_time = np.where(np.array([MRT(t) for t in sol.t]) - np.array([grey_body_MRT_estimate(T, h) for T in inner_temp]) < 0.50)[0][0] / 60
+print(response_time)
 
 axis[0].plot(sol.t / 60, np.array([MRT(t) for t in sol.t]), label="True MRT", color="red")
 axis[0].plot(sol.t / 60, np.array([grey_body_MRT_estimate(T, h) for T in inner_temp]), label="Estimated MRT", color="tomato", linestyle="--")
 axis[0].set_title("MRT Estimates & Synthetic True MRT")
+axis[0].axvline(x=7.92, color="black", label="Emperical Response Time")
+axis[0].axvline(x=response_time, color="black", label="Simulated Response Time", linestyle="--")
 axis[0].set_ylabel("Temperature (K)")
 axis[0].legend()
 axis[0].grid()
