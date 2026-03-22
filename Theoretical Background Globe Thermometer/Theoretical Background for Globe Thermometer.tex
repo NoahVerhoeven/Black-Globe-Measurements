@@ -305,5 +305,77 @@ To achieve this, we use the response times obtained from the IR sensor. This sen
 
 
 \section{Recreating the true MRT function}
-From our simulations we see that direct estimation with our equation \eqref{eq:ideal-grey} isn't accurate. However, we do know that measurements are unique defined by the true MRT function. If we assume the through MRT has some form, e.g. a linear combination of basis functions, we might be able to numerically fit the coefficients of this form to best reproduce the measured data through simulation. So we estimate the coefficients of the true MRT function, we simulate our estimate using these coefficients, and we compare with the actual data. If the simulation matches, we have a good fit, otherwise we try finding better coefficients. My current though is the use either an $n$-order polynomial (so $n$ coefficients) or a fourier series.
+
+From our simulations we see that direct estimation with our equation \eqref{eq:ideal-grey} isn't accurate for a non-static environment, thus meaning a changing true MRT function. In order to allow accurate measurements of the true MRT, our estimates need to be manipulated. In the context of this manuscript, we will refer to this process as 'recreating' the true MRT function based on the provided estimates. In general, we seek a transformation $\divideontimes$ such that
+$$
+ \divideontimes: \: MRT_{\text{Emp}}(t) \rightarrow MRT(t)
+$$
+With $MRT_{\text{Emp}}(t)$ the empirically measured-, and $MRT(t)$ the true MRT. We can research this by using our simulated estimates as the input in $\divideontimes$, we can then quantitatively explore how well this recreated true MRT matches the true (synthetic) MRT.
+
+\subsection{Collocation Method}
+Measurements and estimates are unique defined by the true MRT function. If we assume the through MRT has some form, e.g. a linear combination of basis functions, we might be able to numerically fit the coefficients of this form to best reproduce the measured data through simulation. So we estimate the coefficients of the true MRT function, we simulate our estimate using these coefficients, and we compare with the actual data. If the simulation matches, we have a good fit, otherwise we try finding better coefficients. My current though is the use either an $n$-order polynomial (so $n$ coefficients) or a fourier series.
+
+\subsection{Moving Average}
+From experimenting with the simulation we found that a moving average of the true MRT with an optimal window can recreate our estimate $MRT_{\text{est}}$ very nicely. In figure \ref{fig:moving-average-1} we see that this moving average over the true MRT function indeed recreates the estimated MRT quite well.
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.75\textwidth]{Moving-average-1}
+	\caption{Moving average over the true MRT function, we find that it matches the estimated MRT quite well. We numerically found the optimal window size which resulted in the smallest absolute error between the moving average and the estimated MRT.}
+	\label{fig:moving-average-1}
+\end{figure}
+The moving average approach can be generalized to an arbitrary moving average matrix $\mathbf{A}$. We therefore find that
+$$
+\mathbf{A} T_{\text{MRT}} \approx T_{\text{est}}
+$$
+With $T_{\text{est}}$ the estimated MRT, which would correspond to our empirical data. The matrix $\mathbf{A}$ has the property that all rows, when summed, must equal one. Within these constraints, it can have an arbitrary for. In the figure \ref{fig:moving-average-1} we used an equally weighted moving average, meaning that all non-zero terms had the same values (which is based on the window size). We found that optimal window size for this simulation to be 91, although this depends heavily on the amount of data points, here we used 1000 simulated data points.
+\\
+
+If a moving average matrix $\mathbf{A}$ proves to effectively recreate the estimated MRT, we can simply apply the inverse $\mathbf{A}^{-1}$ to find
+$$
+T_{\text{MRT}} = \mathbf{A}^{-1}T_{\text{est}}
+$$
+We again provide a concrete example of this figure \ref{fig:moving-average-2}.
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.90\textwidth]{Moving-average-2}
+	\caption{Recovered true MRT based on the inverse moving average matrix. We used a constant (equally weighted) moving average with an optimal window size of 901, this was found based on 10000 simulated data points.}
+	\label{fig:moving-average-2}
+\end{figure}
+We find that this method, when using a constant moving average, more efficiently reproduces the true MRT in sections of high variability. Notably, between minutes 7.5 and 12.5, the recovered true MRT is a better match than the normal estimate. However, in regions were the moving average doesn't differ much from the estimate, the recovered true MRT is a worse alternative. For these sections, we find that the estimated MRT doesn't differ much from the true MRT. Nonetheless, we find that this is a method worth investigating.
+\\
+
+We could theorize that a moving average, more weighted around the current point, better represent the overall movement of the true MRT and therefore the estimated MRT. After all, if at some the true MRT is rapidly changing, the estimated MRT will also be rapidly changing. Be weighting to the right, or the current point, we takes these effects better into account. Indeed, if we use a linearly decay (meaning that as we get further from the current point, the weights linearly decrease) moving average, the moving average better reproduces the estimated MRT, and thus this method better recovers the true MRT, see figure \ref{fig:moving-average-3}
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.90\textwidth]{Moving-average-3}
+	\caption{Recovered true MRT based on the inverse moving average matrix. We used a linear decay (right weighted) moving average with an optimal window size of 137, this was found based on 1000 simulated data points.}
+	\label{fig:moving-average-3}
+\end{figure}
+The linear growth scheme is derived by making sure the difference between each of the subsequent non-zero elements is the same, and of course our previous condition that summing these result in 1. Mathematically, we start from by considering the set
+$$
+\vec{X} = \left\{0,1,2,\ldots,x_N\right\}
+$$
+Since we want to weight linearly, we look at the sum
+$$
+\sum_{n=0}^{N}x_n = \frac{N\left(N+1\right)}{2}
+$$
+Therefore, we find that the set of weights $W$ abide by
+$$
+\frac{2}{N(N+1)}\sum_{n=0}^{N}e^{-n} = 1\quad \Longrightarrow \quad \vec{W} =\frac{2}{N(N+1)}\left\{x_0, x_1, \ldots, x_N\right\}
+$$
+This formula can be used to construct a linearly decaying (or growing) moving average matrix with window size $N$.
+\\
+
+We further explore this idea by making an exponential decay version, which will be even more weighted to the current point. We do this by taking $\vec{X} = \left\{0,1,2,\ldots,x_N\right\}$ and than find the weights based on $e^{-\vec{X}}$, we know that
+$$
+\sum_{n=0}^{\infty}e^{-n} = \frac{e}{e-1}
+$$
+Since $0 < e^{-1} < 1$, so this is a geometric series. For a finite sum we find
+$$
+\sum_{n=0}^{N}e^{-n} = \frac{1 - e^{-(N+1)}}{1-\frac{1}{e}}
+$$
+Which indeed converges to the previous identity as $N\rightarrow\infty$. We therefore find that the exponential weights abide by
+$$
+\frac{1-\frac{1}{e}}{1 - e^{-(N+1)}}\sum_{n=0}^{N}e^{-n} = 1\quad \Longrightarrow \quad \vec{W} = \frac{1-\frac{1}{e}}{1 - e^{-(N+1)}}\left\{e^{-x_0}, e^{-x_1}, \ldots, e^{-x_N} \right\}
+$$
 \end{document}

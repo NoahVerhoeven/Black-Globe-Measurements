@@ -49,11 +49,11 @@ shell_temp = sol.y[1]
 fig, axis  = plt.subplots(2, 1, figsize=(8,7), sharex=True)
 fig.suptitle("Simulation Model Verification: Stainless Steel (100 mm)", fontsize=16, fontweight="bold")
 
-response_time = np.where(np.array([MRT(t) for t in sol.t]) - np.array([grey_body_MRT_estimate(T, h) for T in inner_temp]) < 0.50)[0][0] / 60
+response_time = np.where(np.array([MRT(t) for t in sol.t]) - np.array([grey_body_MRT_estimate(T, h, T_a, epsilon) for T in inner_temp]) < 0.50)[0][0] / 60
 print(response_time)
 
 axis[0].plot(sol.t / 60, np.array([MRT(t) for t in sol.t]), label="True MRT", color="red")
-axis[0].plot(sol.t / 60, np.array([grey_body_MRT_estimate(T, h) for T in inner_temp]), label="Estimated MRT", color="tomato", linestyle="--")
+axis[0].plot(sol.t / 60, np.array([grey_body_MRT_estimate(T, h, T_a, epsilon) for T in inner_temp]), label="Estimated MRT", color="tomato", linestyle="--")
 axis[0].set_title("MRT Estimates & Synthetic True MRT")
 axis[0].axvline(x=7.92, color="black", label="Emperical Response Time")
 axis[0].axvline(x=response_time, color="black", label="Simulated Response Time", linestyle="--")
