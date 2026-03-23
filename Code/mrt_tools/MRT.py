@@ -18,7 +18,17 @@ def dTdt(t, T, MRT_func, h,  T_a, epsilon, constant, A, A_i, h_i, constant_i):
     return [dT_i, dT_g]
 
 
-def moving_average_matrix(input_array, window_size, mode="constant"):
+def moving_average_matrix(input_array, window_size, mode="constant", base=1.02):
+    """
+    parameters
+
+    input_array: array we want to apply the moving average to, gives the necessary length
+    window_size: window size of the moving average
+    mode: decides the moving average matrix and its weights
+    base: only for exponential methods, it is the base for the exponential (base^{-x})
+
+    higher base give smoother results, but can start deviating from the true MRT
+    """
     length = len(input_array)
 
     A = np.tri(length, length, 0) / window_size
@@ -49,11 +59,20 @@ def moving_average_matrix(input_array, window_size, mode="constant"):
             A[i-2, i-window_size-1:i-1] = linear_row
         return A
     
-    elif mode == "exponential decay": # weights decrease linearly as we go away from current point (most right)
-        for i in range(1, window_size + 2):
-            linear_row = 2 * np.linspace(0, 1, i)[1:] / i
-            A[i-2, 0:i-1] = linear_row
+    elif mode == "exponential growth": # weights decrease exponentially as we go away from current point (most right)
+        for i in range(2, window_size + 2):
+            exponential_row = base * ((1 - 1 / base) / (1 - base ** (-i + 1))) * np.power(base, (-np.arange(1, i)))
+            A[i-2, 0:i-1] = exponential_row
 
         for i in range(window_size + 2, len(A) + 2):
-            A[i-2, i-window_size-1:i-1] = linear_row
+            A[i-2, i-window_size-1:i-1] = exponential_row
+        return A
+    
+    elif mode == "exponential decay": # weights decrease exponentially as we go away from current point (most right)
+        for i in range(2, window_size + 2):
+            exponential_row = base * ((1 - 1 / base) / (1 - base ** (-i + 1))) * np.power(base, (-np.flip(np.arange(1, i))))
+            A[i-2, 0:i-1] = exponential_row
+
+        for i in range(window_size + 2, len(A) + 2):
+            A[i-2, i-window_size-1:i-1] = exponential_row
         return A

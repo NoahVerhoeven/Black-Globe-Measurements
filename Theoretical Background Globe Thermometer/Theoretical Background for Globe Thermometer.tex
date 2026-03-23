@@ -348,7 +348,7 @@ We could theorize that a moving average, more weighted around the current point,
 \begin{figure}[H]
 	\centering
 	\includegraphics[width=0.90\textwidth]{Moving-average-3}
-	\caption{Recovered true MRT based on the inverse moving average matrix. We used a linear decay (right weighted) moving average with an optimal window size of 137, this was found based on 1000 simulated data points.}
+	\caption{Recovered true MRT based on the inverse moving average matrix. We used a linear decay (right weighted) moving average with an optimal window size of 137, this was found based on 1000 simulated data points. The mean square error is 58.752.}
 	\label{fig:moving-average-3}
 \end{figure}
 The linear growth scheme is derived by making sure the difference between each of the subsequent non-zero elements is the same, and of course our previous condition that summing these result in 1. Mathematically, we start from by considering the set
@@ -378,4 +378,20 @@ Which indeed converges to the previous identity as $N\rightarrow\infty$. We ther
 $$
 \frac{1-\frac{1}{e}}{1 - e^{-(N+1)}}\sum_{n=0}^{N}e^{-n} = 1\quad \Longrightarrow \quad \vec{W} = \frac{1-\frac{1}{e}}{1 - e^{-(N+1)}}\left\{e^{-x_0}, e^{-x_1}, \ldots, e^{-x_N} \right\}
 $$
+Note that $e$ can be replaced with any arbitrary constant $c$, as long as the geometric series requirements holds. We find that this weighting scheme also proofs fruitful, as it can give comparable results to the linear decay method
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.90\textwidth]{Moving-average-4}
+	\caption{Recovered true MRT based on the inverse moving average matrix. We used a exponential decay (right weighted) moving average with an optimal window size of 184, this was found based on 1000 simulated data points. The mean square error is 54.349, which is slight better than \ref{fig:moving-average-3}.}
+	\label{fig:moving-average-4}
+\end{figure}
+
+Based on these results, we propose the following method to recover the true MRT from empirical estimations. We try to construct the optimal moving average matrix. We do this by choosing a method, e.g. linear. Afterwards, we try to find the optimal window size given the method and data. We can test different window sizes relative to each other by looking at how they reproduce the estimated data through this simulation. So for example, we have window sizes 100 and 110, for both these sizes we construct the true MRT. With these true MRT functions, we simulated our estimated MRT, the simulation that best matches our real empirical data is the better window size (and thus the resulting true MRT the better fit).
+\\
+
+We can test this again through simulations, we choose a true MRT and simulate our estimated MRT. We can add a little noise to this simulated estimate to mimic real empirical data. We than perform the procedure as mentioned above. The resulting estimate for the true MRT can be quantitatively compared to the synthetic true MRT.
+
+\subsubsection{Mathematical Justification}
+
+
 \end{document}

@@ -56,7 +56,6 @@ def MRT(t):
     else:
         return t_3(t)
 
-    
 
 sol = solve_ivp(dTdt, [0, minutes*60], [295, 295], args=(MRT, h, T_a, epsilon, constant, A, A_i, h_i, constant_i), method="Radau", t_eval=np.linspace(0, minutes*60, 1000)) # Implicite method to acount for stiffness
 
@@ -64,39 +63,39 @@ inner_temp = sol.y[0]
 shell_temp = sol.y[1]
 
 true_mrt = np.array([MRT(t) for t in sol.t])
-estimated_mrt = np.array([grey_body_MRT_estimate(T, h(t), T_a, epsilon) for T, t in zip(inner_temp, sol.t)])
+estimated_mrt = np.array([grey_body_MRT_estimate(T, h(t), T_a, epsilon) for T, t in zip(inner_temp, sol.t)]) + np.random.normal(0, 1, true_mrt.shape)
 
+mode = "linear decay"
+
+smoothing_matrix = moving_average_matrix(estimated_mrt, window_size=137, mode=mode) # If estimate isn't smooth, this method will never work
+smooth_estimated_mrt = smoothing_matrix@estimated_mrt
+    
 old_error = float('inf')
-best_window_size = 80
-mode = "exponential decay"
 
-for window_size in range(50,350):
-    A = moving_average_matrix(true_mrt, window_size, mode=mode, base=1.018)
+for window_size_guess in range(150,300):
+    A = moving_average_matrix(true_mrt, window_size_guess, mode=mode, base=1.0185)
+    A_inv = inv(A)
 
-    moving_average_over_true_mrt = A@true_mrt
+    recovered_true_mrt = A_inv@smooth_estimated_mrt
 
-    new_error = np.sum(np.square(moving_average_over_true_mrt - estimated_mrt))
+    new_error = np.sum(np.square(recovered_true_mrt - true_mrt))
     
     if old_error > new_error: # if old error is bigger, the new window size is better, so we update the old error
         old_error = new_error
-        best_window_size = window_size
-        best_moving_average_over_true_mrt = moving_average_over_true_mrt
+        best_window_size = window_size_guess
+        best_recovered_true_mrt = recovered_true_mrt
         best_A = A
 
 print(f"Best window size: {best_window_size} with error: {old_error}")
 
-print(best_A)
-
-A_inv = inv(best_A)
-recovered_true_mrt = A_inv@estimated_mrt
-
 fig, axis  = plt.subplots(2, 1, figsize=(10,9), sharex=True)
-fig.suptitle("Simulated MRT Estimates from Globe Temperature + Recovered True MRT", fontsize=16, fontweight="bold")
+fig.suptitle("Recovered True MRT from Noisy Estimations", fontsize=16, fontweight="bold")
 
 axis[0].plot(sol.t / 60, true_mrt, label="True MRT", color="red")
-axis[0].plot(sol.t / 60, best_moving_average_over_true_mrt, label="Moving Average over True MRT", color="green", alpha=0.75)
-axis[0].plot(sol.t / 60, recovered_true_mrt, label="Recovered True MRT", color="purple", alpha=0.75)
-axis[0].plot(sol.t / 60, estimated_mrt, label="Estimated MRT", color="tomato", linestyle="--")
+# axis[0].plot(sol.t / 60, best_moving_average_over_true_mrt, label="Moving Average over True MRT", color="green", alpha=0.75)
+axis[0].plot(sol.t / 60, best_recovered_true_mrt, label="Best Recovered True MRT", color="purple", alpha=0.75)
+axis[0].plot(sol.t / 60, estimated_mrt, label="Noisy Estimated MRT", color="tomato", linestyle="--")
+# axis[0].plot(sol.t / 60, smooth_estimated_mrt, label="Smooth Estimated MRT", linestyle="--") 
 axis[0].set_title("MRT Estimates & Synthetic True MRT")
 axis[0].set_ylabel("Temperature (K)")
 axis[0].legend()
