@@ -5,12 +5,14 @@ import numpy as np
 from numpy.linalg import inv
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp, quad
+from scipy.interpolate import interp1d
 from mrt_tools import dTdt, grey_body_MRT_estimate, moving_average_matrix
 import matplotlib as mpl
 
 mpl.rcParams['font.family'] = 'Times New Roman'
 
-minutes = 20 
+minutes = 20
+t_eval = np.linspace(0, minutes*60, 1000)
 
 
 def V_a(t):
@@ -29,7 +31,7 @@ rho = 8960  # Density of the globe (copper) [kg/m3]
 c = 384 # Specific heat capacity of the globe (copper) [J/kg*K]
 D = 150 * 10 ** -3  # Diameter of the shell
 V = quad(lambda r: 4 * np.pi * r ** 2, (D - thickness)/2, D/2)[0] # Volume of the globe [m3]
-A = 4 * np.pi * (D/2) ** 2 # Surface area of the globe [m2]
+A_shell = 4 * np.pi * (D/2) ** 2 # Surface area of the globe [m2]
 h = lambda t: (6.7 * V_a(t) ** 0.6) / (D ** 0.4) # Forced convective heat transfer coefficient (McAdams) [J/s*m^2*K]
 constant = c * rho * V # [J/K]
 
@@ -57,22 +59,23 @@ def MRT(t):
         return t_3(t)
 
 
-sol = solve_ivp(dTdt, [0, minutes*60], [295, 295], args=(MRT, h, T_a, epsilon, constant, A, A_i, h_i, constant_i), method="Radau", t_eval=np.linspace(0, minutes*60, 1000)) # Implicite method to acount for stiffness
+sol = solve_ivp(dTdt, [0, minutes*60], [295, 295], args=(MRT, h, T_a, epsilon, constant, A_shell, A_i, h_i, constant_i), method="Radau", t_eval=t_eval) # Implicite method to acount for stiffness
+
+mode = "linear decay"
+smoothing_window = 100
+smoothing_matrix = moving_average_matrix(sol.t, window_size=smoothing_window, mode=mode) # If estimate isn't smooth, this method will never work
 
 inner_temp = sol.y[0]
 shell_temp = sol.y[1]
 
 true_mrt = np.array([MRT(t) for t in sol.t])
-estimated_mrt = np.array([grey_body_MRT_estimate(T, h(t), T_a, epsilon) for T, t in zip(inner_temp, sol.t)]) + np.random.normal(0, 1, true_mrt.shape)
+estimated_mrt = np.array([grey_body_MRT_estimate(T, h(t), T_a, epsilon) for T, t in zip(inner_temp, sol.t)]) + np.random.normal(0, 1, sol.t.shape)
 
-mode = "linear decay"
-
-smoothing_matrix = moving_average_matrix(estimated_mrt, window_size=137, mode=mode) # If estimate isn't smooth, this method will never work
 smooth_estimated_mrt = smoothing_matrix@estimated_mrt
     
 old_error = float('inf')
 
-for window_size_guess in range(150,300):
+for window_size_guess in range(195, 210):
     A = moving_average_matrix(true_mrt, window_size_guess, mode=mode, base=1.0185)
     A_inv = inv(A)
 
@@ -86,25 +89,32 @@ for window_size_guess in range(150,300):
         best_recovered_true_mrt = recovered_true_mrt
         best_A = A
 
+best_recovered_true_mrt_func = interp1d(t_eval, best_recovered_true_mrt, kind='linear', fill_value="extrapolate")
+recovered_sol = solve_ivp(dTdt, [0, minutes*60], [295, 295], args=(best_recovered_true_mrt_func, h, T_a, epsilon, constant, A_shell, A_i, h_i, constant_i), method="Radau", t_eval=t_eval) # Implicite method to acount for stiffness
+
+recovered_inner_temp = sol.y[0]
+recovered_shell_temp = sol.y[1]
+
+recovered_estimated_mrt = np.array([grey_body_MRT_estimate(T, h(t), T_a, epsilon) for T, t in zip(inner_temp, sol.t)])
+
+print(f"Estimation smoothing window: {smoothing_window}")
 print(f"Best window size: {best_window_size} with error: {old_error}")
 
 fig, axis  = plt.subplots(2, 1, figsize=(10,9), sharex=True)
 fig.suptitle("Recovered True MRT from Noisy Estimations", fontsize=16, fontweight="bold")
 
-axis[0].plot(sol.t / 60, true_mrt, label="True MRT", color="red")
-# axis[0].plot(sol.t / 60, best_moving_average_over_true_mrt, label="Moving Average over True MRT", color="green", alpha=0.75)
-axis[0].plot(sol.t / 60, best_recovered_true_mrt, label="Best Recovered True MRT", color="purple", alpha=0.75)
-axis[0].plot(sol.t / 60, estimated_mrt, label="Noisy Estimated MRT", color="tomato", linestyle="--")
-# axis[0].plot(sol.t / 60, smooth_estimated_mrt, label="Smooth Estimated MRT", linestyle="--") 
-axis[0].set_title("MRT Estimates & Synthetic True MRT")
+axis[0].plot(sol.t / 60, true_mrt, label="True MRT", color="red", lw=2.5)
+axis[0].plot(sol.t / 60, estimated_mrt, label="Empirical Data", color="tomato")
+axis[0].plot(sol.t / 60, best_recovered_true_mrt, label="Recovered True MRT", color="green", alpha=0.80, linestyle="--")
+axis[0].plot(sol.t / 60, recovered_estimated_mrt, label="Recovered Estimated MRT", color="lawngreen", alpha=0.80, linestyle="--", lw=2.5)
+axis[0].set_title("Recovered True & Estimated MRT")
 axis[0].set_ylabel("Temperature (K)")
 axis[0].legend()
 axis[0].grid()
 
-
 axis[1].plot(sol.t / 60, shell_temp, label="Globe Temperature", color="blue")
 axis[1].plot(sol.t / 60, inner_temp, label="Inner Temperature", color="royalblue", linestyle="--")
-axis[1].set_title("Globe & Inner Temperature")
+axis[1].set_title("Recovered Globe & Inner Temperature")
 axis[1].set_xlabel("Time (min)")
 axis[1].set_ylabel("Temperature (K)")
 axis[1].legend()
