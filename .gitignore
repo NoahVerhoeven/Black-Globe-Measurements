@@ -10,6 +10,8 @@
 *.userosscache
 *.sln.docstates
 *.env
+*.venv
+*.vscode
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -95,6 +97,7 @@ StyleCopReport.xml
 *.pgc
 *.pgd
 *.rsp
+
 # but not Directory.Build.rsp, as it configures directory-level build defaults
 !Directory.Build.rsp
 *.sbr
@@ -416,3 +419,6 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# self-made module
+*.egg-info/
