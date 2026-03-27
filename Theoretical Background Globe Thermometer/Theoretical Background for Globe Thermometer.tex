@@ -401,5 +401,42 @@ We do emphasize the fact that this is based on the assumption of continuous and 
 
 \subsubsection{Mathematical Justification}
 
+\subsection{Complete Algorithm}
+The central assumption of this algorithm is that the true MRT is a smooth and continuous function. To preserve this quality, we must first find continuous versions of our data. To do this, we employ spline smoothing. This way the data gets smoothed out by fitting splines. This is done to all relevant time dependent variables (wind speed, air temperature and thermocouple measurements). These continuous variables, alongside other constants like globe density
+\\
 
+After we obtain continuous versions of our time dependent data, we calculate the smooth estimate of our MRT (we use the continuous variables for this to ensure a continuous MRT estimate).
+\\
+
+We, mathematically, found that the globe thermometer is a low-pass filter for the true MRT. So, conceptually, we can view the estimated MRT as a moving average of the true MRT (see mathematical justification). By inverting this moving average operation, we can recover the true MRT. To do this, we use a linearly decaying moving average matrix.
+\\
+
+The results of this moving average depend on the window size, bigger window sizes will take more of the previous points into account. Therefore, we try to find the optimal window size numerically.
+\\
+
+For each window size, we find the inverted moving average matrix and apply this to our smoothed out estimate. This results in a continuous guess for the true MRT. We use this guess, in additional with the other time dependent variables, to simulate our thermocouple measurements (see non-equilibrium states). We assign this window guess an error based on the difference between the real and simulated thermocouple measurements.
+\\
+
+If the error is small, than the underlying guess for the true MRT must decent, if the error is big, the underlying guess for the true MRT is bad. We now repeat the procedure of guessing windows until we found the window size that minimizes the error between the simulated and real thermocouple measurements.
+\\
+
+In figure \ref{fig:robust-test} we used this method, we artificially added noise to our thermocouple data. In the ideal case, we perfectly recover the true MRT (red line), however, we see that this procedure results in a close approximation of this true MRT.
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{Robust-moving-average-test}
+	\caption{}
+	\label{fig:robust-test}
+\end{figure}
+
+A possible issue with this method is the over- or under smoothing of the time dependent variables. Under smoothing leads to rapidly oscillating recovered MRT (this is because of the high number of oscillating splines). This can be easily caught, as it produces physically unrealistic true MRT estimates, this is of course assuming that we have prior knowledge of the environment were we take measurements. If we over smooth, these oscillations won't be present, but our recovered estimate can start to drift. Over smoothing can visually be caught by looking at the fit between the data and the spline. A good baseline for the smoothing parameter in scipy is
+$$
+\text{smoothing parameter} = \text{length data} \cdot \text{standard deviation of measurements}^{1.5}
+$$
+If non-physical oscillation is present, increase the parameter slightly until they disappear. We also advocate for slight over smoothing rather than under smoothing. This method can be used in for project, as it is robust against sudden (continuous) jumps, below we model a sudden jump in wind speed, which can occur when suddenly changing direction. The recovered true MRT shows a sudden spike in the same place, but quickly goes back to accurately following the right MRT.
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{Robust-moving-average-test-jump}
+	\caption{}
+	\label{fig:robust-test-jump}
+\end{figure}
 \end{document}

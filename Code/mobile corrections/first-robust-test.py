@@ -22,7 +22,10 @@ minutes = 25
 t_eval = np.linspace(0, minutes*60, 1000)
 
 def V_a(t): # needs to be smooth to, so real data has to be fit spline smoothed out as well
-    return (t ** 1.3) / 3000
+    if t <= 350:
+        return 3.5
+    else:
+        return - np.e ** (-(t - 350)) / 2 + 4
 
 
 T_a = 295
