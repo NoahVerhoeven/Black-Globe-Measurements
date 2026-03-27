@@ -303,7 +303,12 @@ In the paper "Assessment of black globe thermometers employing various sensors a
 
 To achieve this, we use the response times obtained from the IR sensor. This sensor has a reported accuracy of $\pm 0.5\unit{\kelvin}$. We therefore determine the simulated 'response' by checking when our estimated MRT is within 0.5 of the true MRT. (now include the figures)
 
-
+\subsection{Convective Heat Transfer Coefficient}
+We note that in our project, we are dealing with forced convection, as such a good formula for the convective heat transfer coefficient $h$ is
+$$
+h = 6.7\frac{V_a^{0.6}}{D^{0.4}}
+$$
+which is valid in standard conditions. For higher wind speeds, the rate of change of the heat of the globe will be high, and we reach equilibrium much faster. \textbf{It is very important to emphasize that the convective heat transfer coefficient doesn't the true MRT, only our estimate, since the heat ex}
 \section{Recreating the true MRT function}
 
 From our simulations we see that direct estimation with our equation \eqref{eq:ideal-grey} isn't accurate for a non-static environment, thus meaning a changing true MRT function. In order to allow accurate measurements of the true MRT, our estimates need to be manipulated. In the context of this manuscript, we will refer to this process as 'recreating' the true MRT function based on the provided estimates. In general, we seek a transformation $\divideontimes$ such that
@@ -390,6 +395,9 @@ Based on these results, we propose the following method to recover the true MRT 
 \\
 
 We can test this again through simulations, we choose a true MRT and simulate our estimated MRT. We can add a little noise to this simulated estimate to mimic real empirical data. We than perform the procedure as mentioned above. The resulting estimate for the true MRT can be quantitatively compared to the synthetic true MRT.
+\\
+
+We do emphasize the fact that this is based on the assumption of continuous and smooth functions. This will in empirical data be true because of statistical noise. To recover the true MRT, we need to first smooth over our empirical data. We currently have two suggestions, \textbf{we either use a moving average again, but also keep in mind further points and we center around the current point (thus would mean that the diagonal element will always be the biggest in the row), this smooths over data but will ultimately result in noisy recovered true MRT. Alternatively, we can use spline smoothing, since this by definition results in a smooth and continuous fit to the data the recovered MRT will also be smooth and continuous.}
 
 \subsubsection{Mathematical Justification}
 

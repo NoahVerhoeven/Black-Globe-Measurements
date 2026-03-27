@@ -45,6 +45,8 @@ h_i = 2 # (3 * V_a ** 0.6) / (D_i ** 0.4)
 n_i = rho_i * V_i / M_i # Number of moles of the inner part [mol]
 constant_i = c_i * n_i # [J/K]
 
+args = (h,  T_a, epsilon, constant, A_shell, A_i, h_i, constant_i)
+
 
 def MRT(t):
     t_1 = lambda t: 300.2 + np.cos(t/10)
@@ -59,7 +61,7 @@ def MRT(t):
         return t_3(t)
 
 
-sol = solve_ivp(dTdt, [0, minutes*60], [295, 295], args=(MRT, h, T_a, epsilon, constant, A_shell, A_i, h_i, constant_i), method="Radau", t_eval=t_eval) # Implicite method to acount for stiffness
+sol = solve_ivp(dTdt, [0, minutes*60], [295, 295], args=(MRT, args), method="Radau", t_eval=t_eval) # Implicite method to acount for stiffness
 
 mode = "linear decay"
 smoothing_window = 100
@@ -74,6 +76,9 @@ estimated_mrt = np.array([grey_body_MRT_estimate(T, h(t), T_a, epsilon) for T, t
 smooth_estimated_mrt = smoothing_matrix@estimated_mrt
     
 old_error = float('inf')
+
+print(t_eval)
+
 
 for window_size_guess in range(195, 210):
     A = moving_average_matrix(true_mrt, window_size_guess, mode=mode, base=1.0185)
@@ -90,7 +95,7 @@ for window_size_guess in range(195, 210):
         best_A = A
 
 best_recovered_true_mrt_func = interp1d(t_eval, best_recovered_true_mrt, kind='linear', fill_value="extrapolate")
-recovered_sol = solve_ivp(dTdt, [0, minutes*60], [295, 295], args=(best_recovered_true_mrt_func, h, T_a, epsilon, constant, A_shell, A_i, h_i, constant_i), method="Radau", t_eval=t_eval) # Implicite method to acount for stiffness
+recovered_sol = solve_ivp(dTdt, [0, minutes*60], [295, 295], args=(best_recovered_true_mrt_func, args), method="Radau", t_eval=t_eval) # Implicite method to acount for stiffness
 
 recovered_inner_temp = sol.y[0]
 recovered_shell_temp = sol.y[1]
