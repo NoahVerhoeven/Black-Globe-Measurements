@@ -400,8 +400,41 @@ We can test this again through simulations, we choose a true MRT and simulate ou
 We do emphasize the fact that this is based on the assumption of continuous and smooth functions. This will in empirical data be true because of statistical noise. To recover the true MRT, we need to first smooth over our empirical data. We currently have two suggestions, \textbf{we either use a moving average again, but also keep in mind further points and we center around the current point (thus would mean that the diagonal element will always be the biggest in the row), this smooths over data but will ultimately result in noisy recovered true MRT. Alternatively, we can use spline smoothing, since this by definition results in a smooth and continuous fit to the data the recovered MRT will also be smooth and continuous.}
 
 \subsubsection{Mathematical Justification}
-
-\subsection{Complete Algorithm}
+Let's look at the ODE
+$$
+\diff{g}{t} = \frac{1}{\tau(t)}\left(u(t) - g(t)\right)
+$$
+We view $u(t)$ as some input signal that 'controls' were $g(t)$ goes, $\tau$ is a positive constant. If $u(t) > g(t)$, than $g(t)$ will increase (positive derivative), it will start slowing down as it approaches $u(t)$ and stop if they are equal. The constant $\tau$ determines have fast this process happens. We see that, for such systems, we can associate a vector field
+$$
+\mathbf{F} = \begin{pmatrix}
+\tau(t) \\ g - u(t)
+\end{pmatrix}\, \text{and}\, \dl{\mathbf{a}} = \begin{pmatrix}
+\dl g \\ \dl t
+\end{pmatrix} \quad \Longrightarrow \quad \mathbf{F} \cdot \dl{\mathbf{a}} = 0
+$$
+Now, if $\mathbf{F}$ is conservative, than there exist a scalarfield such $\mathbf{F} = \grad{f}$. For this to be true, we check the following identity
+$$\curl{\mathbf{F}} = \begin{vmatrix}
+	\mathbf{e}_1 & \mathbf{e}_2 & \mathbf{e}_3 \\
+	\partial_g & \partial_t & 0 \\
+	\tau(t) & g - u(t)& 0
+\end{vmatrix} = \begin{pmatrix}
+0 \\ 0 \\ 1 - \partial_t \tau(t)
+\end{pmatrix} \neq \mathbf{0}
+$$
+In general, this vectorfield thus isn't conservative, we therefore find an integrating factor $\mu(g, t)$ such that it is. We find the integrating factor to be
+$$
+\mu(t) = e^{\int \frac{1 - \dot{\tau}(t)}{\tau(t)}\dl t }
+$$
+The scalarfield $f = c$ has to be a constant, we find that
+$$
+\partial_g f = \mu(t)\tau(t) = 0 \quad \text{and}  \quad \partial_t f = \mu(t)\left(g - u(t)\right) = 0
+$$
+Integrating both these differential equations leads to
+$$
+f = \mu(t)\tau(t)g + C_1(t) \quad \text{and} \quad f = \int \mu(t)\left(g - u(t)\right)\dl t + C_2(g)
+$$
+It necessarily follows that $C_2(g) = 0$, since in the first identity of $f$ no (sole) $g$-dependence is found. 
+\subsubsection{Complete Algorithm}
 The central assumption of this algorithm is that the true MRT is a smooth and continuous function. To preserve this quality, we must first find continuous versions of our data. To do this, we employ spline smoothing. This way the data gets smoothed out by fitting splines. This is done to all relevant time dependent variables (wind speed, air temperature and thermocouple measurements). These continuous variables, alongside other constants like globe density
 \\
 

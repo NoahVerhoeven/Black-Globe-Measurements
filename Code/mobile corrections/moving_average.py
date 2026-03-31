@@ -72,7 +72,7 @@ best_window_size = 80
 mode = "exponential decay"
 
 for window_size in range(50,350):
-    A = moving_average_matrix(true_mrt, window_size, mode=mode, base=1.018)
+    A = moving_average_matrix(true_mrt, window_size, mode=mode, base_func=1.018)
 
     moving_average_over_true_mrt = A@true_mrt
 

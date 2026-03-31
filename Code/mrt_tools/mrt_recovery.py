@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d, UnivariateSpline
 from .mrt_simulation import dTdt, grey_body_MRT_estimate
 
 
-def moving_average_matrix(input, window_size, mode="linear decay", base=1.02):
+def moving_average_matrix(input, window_size, mode="linear decay", base_func=None):
     """
     Parameters
 
@@ -24,63 +24,58 @@ def moving_average_matrix(input, window_size, mode="linear decay", base=1.02):
     A[0, :1] = 1
 
     if mode == "constant": # weights stay constant over window
-        for i in range(1, window_size):
-            A[i, :i+1] = 1/(i+1)
+        for index in range(1, window_size):
+            A[index, :index+1] = 1/(index+1)
         return A
     
     elif mode == "linear growth": # weights grow linearly as we go away from current point (most right)
-        for i in range(2, window_size + 2):
-            linear_row = np.flip((2 / (i * (i - 1))) * np.arange(1, i))
-            A[i-2, 0:i-1] = linear_row
+        for index in range(2, window_size + 2):
+            linear_row = np.flip((2 / (index * (index - 1))) * np.arange(1, index))
+            A[index-2, 0:index-1] = linear_row
 
-        for i in range(window_size + 2, len(A) + 2):
-            A[i-2, i-window_size-1:i-1] = linear_row
+        for index in range(window_size + 2, len(A) + 2):
+            A[index-2, index-window_size-1:index-1] = linear_row
         return A
     
     elif mode == "linear decay": # weights decrease linearly as we go away from current point (most right)
-        for i in range(2, window_size + 2):
-            linear_row = (2 / (i * (i - 1))) * np.arange(1, i)
-            A[i-2, 0:i-1] = linear_row
+        for index in range(2, window_size + 2):
+            linear_row = (2 / (index * (index - 1))) * np.arange(1, index)
+            A[index-2, 0:index-1] = linear_row
 
-        for i in range(window_size + 2, len(A) + 2):
-            A[i-2, i-window_size-1:i-1] = linear_row
+        for index in range(window_size + 2, len(A) + 2):
+            A[index-2, index-window_size-1:index-1] = linear_row
         return A
     
     elif mode == "exponential growth": # weights decrease exponentially as we go away from current point (most right)
-        for i in range(2, window_size + 2):
-            exponential_row = base * ((1 - 1 / base) / (1 - base ** (-i + 1))) * np.power(base, (-np.arange(1, i)))
-            A[i-2, 0:i-1] = exponential_row
+        for index in range(2, window_size + 2):
+            exponential_row = base_func(index - 2) * ((1 - 1 / base_func(index - 2)) / (1 - base_func(index - 2) ** (-index + 1))) * np.power(base_func(index - 2), (-np.arange(1, index)))
+            A[index-2, 0:index-1] = exponential_row
 
-        for i in range(window_size + 2, len(A) + 2):
-            A[i-2, i-window_size-1:i-1] = exponential_row
+        for index in range(window_size + 2, len(A) + 2):
+            A[index-2, index-window_size-1:index-1] = exponential_row
         return A
     
     elif mode == "exponential decay": # weights decrease exponentially as we go away from current point (most right)
-        for i in range(2, window_size + 2):
-            exponential_row = base * ((1 - 1 / base) / (1 - base ** (-i + 1))) * np.power(base, (-np.flip(np.arange(1, i))))
-            A[i-2, 0:i-1] = exponential_row
+        for index in range(2, window_size + 2):
+            exponential_row = base_func(index - 2) * ((1 - 1 / base_func(index - 2)) / (1 - base_func(index - 2) ** (-index + 1))) * np.power(base_func(index - 2), (-np.flip(np.arange(1, index))))
+            A[index-2, 0:index-1] = exponential_row
 
-        for i in range(window_size + 2, len(A) + 2):
-            A[i-2, i-window_size-1:i-1] = exponential_row
+        for index in range(window_size + 2, len(A) + 2):
+            A[index-2, index-window_size-1:index-1] = exponential_row
         return A
     
-    elif mode == "gaussian":
-        for i in range(window_size):
-            # Define window bounds
-            left = max(0, i - window_size // 2)
-            right = min(window_size, i + window_size // 2 + 1)
+    elif mode == "exponential smoothing":
+        # weights are alpha * (1-alpha)^k for k steps back, with (1-alpha)^(n-1) absorbed into oldest
+        for index in range(2, window_size + 2):
+            n = index - 1  # number of points in this window
+            alpha = base_func(index - 2)
+            powers = np.flip(np.arange(0, n))  # [n-1, n-2, ..., 1, 0]
+            smoothing_row = alpha * np.power(1 - alpha, powers)
+            smoothing_row[0] += np.power(1 - alpha, n)  # absorb tail into oldest weight so row sums to 1
+            A[index-2, 0:index-1] = smoothing_row
 
-            # Positions in the window
-            positions = np.arange(left, right)
-
-            # Gaussian weights centered at i
-            weights = np.exp(-((positions - i) ** 2) / (2 * ((window_size - 1) // 6) ** 2))
-
-            # Normalize so row sums to 1
-            weights /= weights.sum()
-
-            # Assign to matrix
-            A[i, left:right] = weights
+        for index in range(window_size + 2, len(A) + 2):
+            A[index-2, index-window_size-1:index-1] = smoothing_row
         return A
 
 
@@ -109,14 +104,14 @@ def recovery_error(recovered_data, empirical_data, mode="square"):
         return np.sum(np.absolute(empirical_data - recovered_data))
     
 
-def recover_mrt(empirical_data, window_size, args, t_eval, mode="linear decay", base=1.02):
+def recover_mrt(empirical_data, window_size, args, t_eval, mode="linear decay", base_func=None):
     h,  T_a, epsilon, constant, A_shell, A_i, h_i, constant_i = args
 
     A = moving_average_matrix(
         input=empirical_data,
         window_size=window_size,
         mode=mode,
-        base=base
+        base_func=base_func
     )
     A_inv = inv(A)
 
@@ -130,12 +125,12 @@ def recover_mrt(empirical_data, window_size, args, t_eval, mode="linear decay", 
     recovered_inner_temp = sol.y[0]
     recovered_shell_temp = sol.y[1]
 
-    recovered_estimated_mrt = np.array([grey_body_MRT_estimate(T, h(t), T_a, epsilon) for T, t in zip(recovered_inner_temp, sol.t)])
+    recovered_estimated_mrt = np.array([grey_body_MRT_estimate(T, h(t), T_a(t), epsilon) for T, t in zip(recovered_inner_temp, sol.t)])
 
     return recovered_estimated_mrt, recovered_true_mrt, recovered_inner_temp, recovered_shell_temp
 
 
-def optimize_recovery(empirical_mrt, smooth_empirical_mrt, args, t_eval, optimizing_range, method="bisection", smoothing_window=90, error_method="absolute"):
+def optimize_recovery(empirical_mrt, smooth_empirical_mrt, smooth_args, t_eval, optimizing_range, method="bisection", error_method="absolute", moving_average="exponential decay", base_func=None):
     '''
     Optimize true MRT recovery by numerically finding the optimal moving average window.
     '''
@@ -156,9 +151,10 @@ def optimize_recovery(empirical_mrt, smooth_empirical_mrt, args, t_eval, optimiz
             recovered_estimated_mrt, recovered_true_mrt, _, _ = recover_mrt(
                 empirical_data=smooth_empirical_mrt,
                 window_size=window_size_guess,
-                args=args,
-                mode="linear decay",
-                t_eval=t_eval
+                args=smooth_args,
+                mode=moving_average,
+                t_eval=t_eval,
+                base_func=base_func
             )
 
             new_error = recovery_error(
@@ -190,7 +186,7 @@ def optimize_recovery(empirical_mrt, smooth_empirical_mrt, args, t_eval, optimiz
         m1_recovered, m1_true, _, _ = recover_mrt(
             empirical_data=smooth_empirical_mrt,
             window_size=m1,
-            args=args,
+            args=smooth_args,
             t_eval=t_eval
         )
         m1_error = recovery_error(recovered_data=m1_recovered, empirical_data=empirical_mrt)
@@ -198,7 +194,7 @@ def optimize_recovery(empirical_mrt, smooth_empirical_mrt, args, t_eval, optimiz
         m2_recovered, m2_true, _, _ = recover_mrt(
             empirical_data=smooth_empirical_mrt,
             window_size=m2,
-            args=args,
+            args=smooth_args,
             t_eval=t_eval
         )
         m2_error = recovery_error(
@@ -220,7 +216,7 @@ def optimize_recovery(empirical_mrt, smooth_empirical_mrt, args, t_eval, optimiz
                 m2_recovered, m2_true, _, _ = recover_mrt(
                     empirical_data=smooth_empirical_mrt,
                     window_size=m2,
-                    args=args,
+                    args=smooth_args,
                     t_eval=t_eval
                 )
                 m2_error = recovery_error(
@@ -236,7 +232,7 @@ def optimize_recovery(empirical_mrt, smooth_empirical_mrt, args, t_eval, optimiz
                 m1_recovered, m1_true, _, _ = recover_mrt(
                     empirical_data=smooth_empirical_mrt,
                     window_size=m1,
-                    args=args,
+                    args=smooth_args,
                     t_eval=t_eval
                 )
                 m1_error = recovery_error(
@@ -253,7 +249,7 @@ def optimize_recovery(empirical_mrt, smooth_empirical_mrt, args, t_eval, optimiz
             recovered, true_mrt, _, _ = recover_mrt(
                 empirical_data=smooth_empirical_mrt,
                 window_size=w,
-                args=args,
+                args=smooth_args,
                 t_eval=t_eval
             )
             err = recovery_error(

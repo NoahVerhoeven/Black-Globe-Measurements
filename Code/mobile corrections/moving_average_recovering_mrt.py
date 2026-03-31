@@ -81,7 +81,7 @@ print(t_eval)
 
 
 for window_size_guess in range(195, 210):
-    A = moving_average_matrix(true_mrt, window_size_guess, mode=mode, base=1.0185)
+    A = moving_average_matrix(true_mrt, window_size_guess, mode=mode, base_func=1.0185)
     A_inv = inv(A)
 
     recovered_true_mrt = A_inv@smooth_estimated_mrt
