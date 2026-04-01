@@ -166,7 +166,7 @@ def optimize_recovery(empirical_mrt, smooth_empirical_mrt, smooth_args, t_eval, 
             window_guesses.append(window_size_guess)
             error_array.append(new_error)
 
-            print(new_error, window_size_guess)
+            # print(new_error, window_size_guess)
             
             if best_error > new_error: # if old error is bigger, the new window size is better, so we update the old error
                 best_error = new_error

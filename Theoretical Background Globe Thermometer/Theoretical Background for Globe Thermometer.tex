@@ -472,4 +472,35 @@ If non-physical oscillation is present, increase the parameter slightly until th
 	\caption{}
 	\label{fig:robust-test-jump}
 \end{figure}
+\textbf{The newest version of the algorithm doesn't numerically find the optimal window. Instead, we can derive (by linearizing the ODE) the smoothing parameter $\alpha$ used in the exponential smoothing. Exponential smoothing can still be seen as a moving average, expect in our algorithm the window size is necessarily the same the length of our data. So for exponential smoothing, our matrix will be a lower triangular matrix with the same properties as before. We can still take it's inverse to recover the true MRT. We do this because our globe thermometer conceptually represents a IIR filter (infinite response filter). Additionally, we now spline smooth the estimates directly (which is computationally more viable). We use the 'De wet van foutenpropagatie', see our course in statistics, to determine the standard deviations from our original measurements, we assume these to be independent. We find based on \eqref{eq:ideal-grey} that}
+$$
+\diffp{T_{\text{MRT}}}{T_g} = \frac{1}{4}\left(T_g^4 + \frac{6.3V_a^{0.6}}{a_g\sigma D^{0.4}}\left(T_g - T_a\right)\right)^{-\frac{3}{4}}\left(4T_g^3 + \frac{6.3V_a^{0.6}}{a_g\sigma D^{0.4}}\right)
+$$
+$$
+\diffp{T_{\text{MRT}}}{T_a} = -\frac{6.3V_a^{0.6}}{4a_g\sigma D^{0.4}}\left(T_g^4 + \frac{6.3V_a^{0.6}}{a_g\sigma D^{0.4}}\left(T_g - T_a\right)\right)^{-\frac{3}{4}}
+$$
+$$
+\diffp{T_{\text{MRT}}}{V_a} = \frac{1}{4}\left(T_g^4 + \frac{6.3V_a^{0.6}}{a_g\sigma D^{0.4}}\left(T_g - T_a\right)\right)^{-\frac{3}{4}}\left(\frac{0.6\cdot6.3V_a^{-0.4}}{a_g\sigma D^{0.4}}\left(T_g - T_a\right)\right)
+$$
+With the vector
+$$
+\mathbf{D} = \begin{pmatrix}
+	\diffp{T_{\text{MRT}}}{T_g} \\
+	\diffp{T_{\text{MRT}}}{T_a} \\
+	\diffp{T_{\text{MRT}}}{V_a}
+\end{pmatrix}
+$$
+And covariance matrix
+$$
+\mathbf{M} = \begin{bmatrix}
+	\sigma_{T_g}^2 & 0 & 0 \\
+	0 & \sigma_{T_a}^2 & 0 \\
+	0 & 0 & \sigma_{V_a}^2
+\end{bmatrix}
+$$
+We find that the error for our estimate is
+$$
+\sigma_{T_{\text{MRT}}}^2 = \mathbf{D}^T\mathbf{M}\mathbf{D}
+$$
+Alternatively, we could just measure this lol. Which would be difficult, as we can't provide the necessary controlled environment for this. We needs this parameter to estimate the smoothing parameter and for uncertainty estimates in
 \end{document}
