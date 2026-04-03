@@ -43,7 +43,6 @@ def T_a(t):
 
 
 def MRT(t):
-    # return 350
     t_1 = lambda t: 300.2 + np.cos(t/10)
     t_2 = lambda t: 40 * np.sin((t - 400) / 200) + t_1(400)
     t_3 = lambda t: np.exp(-t/850) + t_2(850) - np.exp(-801/850)
@@ -80,7 +79,7 @@ constant_i = c_i * n_i # [J/K]
 
 args = np.array([h,  T_a, epsilon, constant, A_shell, A_i, h_i, constant_i])
 
-sol = solve_ivp(dTdt, [t_eval[0], t_eval[-1]], [295, 295], args=(MRT, args), method="Radau", t_eval=t_eval) # Implicit method to account for stiffness
+sol = solve_ivp(dTdt, [t_eval[0], t_eval[-1]], [295, 295], args=(MRT, args), method="Radau", t_eval=t_eval) # Implicit method to account for stiffness, sol.y[0] is the Thermocouple temp, sol.y[1] is shell temp
 
 # Adding noise to the simulated thermocouple measurements and t-depedent variables (wind speed and air temperature)
 temp_spread = 0.25
@@ -107,7 +106,7 @@ noisy_args = np.array([noisy_h_cont, noisy_T_a_cont, epsilon, constant, A_shell,
 
 old_error = float("inf")
 
-for guess in range(24400, 24550, 5):
+for guess in range(24350, 24550, 5):
     print(f"Testing guess: {guess}")
 
     smooth_estimated_mrt = make_splrep(t_eval, estimated_mrt, s=guess)
@@ -124,7 +123,7 @@ for guess in range(24400, 24550, 5):
         error_method="absolute",
         base_func=alpha
     )
-    print(f"Error multiple spline smooths: {best_error}\n")    
+    print(f"Error multiple spline smooths: {best_error}\n")
 
     if best_error < old_error:
         old_error = best_error
@@ -153,8 +152,9 @@ fig, axis  = plt.subplot_mosaic(
 fig.suptitle("Recovered True MRT from Noisy Estimations", fontsize=16, fontweight="bold")
 
 axis["MRT"].plot(sol.t / 60, true_mrt, label="True MRT", color="red", lw=2.5)
-axis["MRT"].scatter(sol.t / 60, estimated_mrt, label="Empirical MRT", color="tomato", s=4)
+axis["MRT"].scatter(sol.t / 60, estimated_mrt, label="Noisy Empirical MRT", color="tomato", s=4)
 axis["MRT"].plot(sol.t / 60, smooth_estimated_mrt, label="Spline Smooth Empirical MRT", color="grey", lw=2.5)
+# axis["MRT"].plot(sol.t / 60, [grey_body_MRT_estimate(T, h(t), T_a(t), epsilon) for T, t in zip(sol.y[0],sol.t)], label="Simulated Empirical MRT", color="black", lw=2.5)
 axis["MRT"].plot(sol.t / 60, best_recovered_true_mrt, label="Recovered True MRT", color="green", lw=2.5,alpha=0.75)
 axis["MRT"].set_title("Recovered True & Estimated MRT")
 axis["MRT"].set_xlabel("Time (min)")
@@ -177,7 +177,8 @@ axis["Air"].legend()
 axis["Air"].grid()
 
 axis["Globe"].scatter(sol.t / 60, noisy_thermocouple_temp, label="Thermocouple Measurements", color="royalblue", s=4)
-# axis["Globe"].plot(sol.t / 60, [noisy_thermocouple_temp_cont(t) for t in t_eval], label="Spline Smooth Thermocouple", color="grey", lw=2.5)
+# axis["Globe"].plot(sol.t / 60, sol.y[0], label="Simulated Thermocouple", color="green", lw=2.5)
+# axis["Globe"].plot(sol.t / 60, sol.y[1], label="Simulated Shell", color="darkblue", lw=2.5)
 axis["Globe"].set_title("Noisy Thermocouple Measurements")
 axis["Globe"].set_xlabel("Time (min)")
 axis["Globe"].set_ylabel("Temperature (K)")
