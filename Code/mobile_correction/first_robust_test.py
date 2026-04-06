@@ -5,21 +5,22 @@ import numpy as np
 from numpy.linalg import inv
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp, quad
-from scipy.interpolate import interp1d, UnivariateSpline, make_splrep
+from scipy.interpolate import interp1d, UnivariateSpline, make_splrep, make_smoothing_spline
 from mrt_tools import (
     dTdt,
     grey_body_MRT_estimate,
     moving_average_matrix,
     recovery_error,
     recover_mrt,
-    optimize_recovery
+    optimize_recovery,
+    get_mrt_error
 )
 import matplotlib as mpl
 
 mpl.rcParams['font.family'] = 'Times New Roman'
 
 minutes = 25
-t_eval = np.linspace(0, minutes*60, 3000)
+t_eval = np.linspace(0, minutes*60, 4000)
 s = len(t_eval)
 
 
@@ -28,7 +29,6 @@ s = len(t_eval)
 # Our recovery algorithm should recover the true MRT, we can therefore quantify how good the alogirthm is (since we know the true MRT)
 
 def V_a(t):
-    return 3.5
     V_2 = lambda t: (t - 500) / 20 + 3.5
     if t <= 500:
         return 3.5
@@ -58,12 +58,12 @@ def MRT(t):
     
 
 sigma = 5.67037 * 10 ** -8 # [J/s*m^2*K^4]
-thickness = 2 * 10 ** -3 # Thickness of the globe shell [m]
+thickness = 0.4 * 10 ** -3 # Thickness of the globe shell [m]
 
 epsilon = 0.95  # Emissivity of black paint
 rho = 8960  # Density of the globe (copper) [kg/m3]
 c = 384 # Specific heat capacity of the globe (copper) [J/kg*K]
-D = 40 * 10 ** -3  # Diameter of the shell [m]
+D = 150 * 10 ** -3  # Diameter of the shell [m]
 V = quad(lambda r: 4 * np.pi * r ** 2, (D - thickness)/2, D/2)[0] # Volume of the globe [m3]
 A_shell = 4 * np.pi * (D/2) ** 2 # Surface area of the globe [m2]
 h = lambda t: (6.3 * V_a(t) ** 0.6) / (D ** 0.4) # Forced convective heat transfer coefficient (McAdams) [J/s*m^2*K]
@@ -82,26 +82,46 @@ constant_i = c_i * n_i # [J/K]
 args = np.array([h,  T_a, epsilon, constant, A_shell, A_i, h_i, constant_i])
 
 sol = solve_ivp(dTdt, [t_eval[0], t_eval[-1]], [295, 295], args=(MRT, args), method="Radau", t_eval=t_eval) # Implicit method to account for stiffness, sol.y[0] is the Thermocouple temp, sol.y[1] is shell temp
+true_mrt = np.array([MRT(t) for t in sol.t])
 
 # Adding noise to the simulated thermocouple measurements and t-depedent variables (wind speed and air temperature)
-temp_spread = 0.25
+temp_spread = 0.15
 V_a_spread = 0.1
 
+# NOISE DATA
 noisy_thermocouple_temp = sol.y[0] + np.random.normal(0, temp_spread, sol.t.shape)
 noisy_V_a = np.array([V_a(t) for t in sol.t]) + np.random.normal(0, V_a_spread, sol.t.shape)
 noisy_T_a = np.array([T_a(t) for t in sol.t]) + np.random.normal(0, temp_spread, sol.t.shape)
 
+# NOISE BUT CONTINUEUS
 noisy_thermocouple_temp_cont = make_splrep(t_eval, noisy_thermocouple_temp)
 noisy_V_a_cont = make_splrep(t_eval, noisy_V_a)
 noisy_T_a_cont = make_splrep(t_eval, noisy_T_a)
-
 noisy_h_cont = lambda t: (6.3 * noisy_V_a_cont(t) ** 0.6) / (D ** 0.4)
+
 noisy_h_average = np.mean([noisy_h_cont(t) for t in t_eval])
 
-smooth_h = make_splrep(t_eval, [noisy_h_cont(t) for t in t_eval], s=s-np.sqrt(s))
+# SMOOTHED OUT DATA
+# smooth_thermocouple = make_splrep(t_eval, noisy_thermocouple_temp, w=[1/temp_spread] * len(t_eval), s=s + np.sqrt(2 * s))
+# smooth_T_a = make_splrep(t_eval, noisy_T_a, w=[1/temp_spread] * len(t_eval), s=s + np.sqrt(2 * s))
+# smooth_V_a = make_splrep(t_eval, noisy_V_a, w=[1/V_a_spread] * len(t_eval), s=s + np.sqrt(2 * s))
+smooth_thermocouple = make_smoothing_spline(t_eval, noisy_thermocouple_temp)
+smooth_T_a = make_smoothing_spline(t_eval, noisy_T_a)
+smooth_V_a = make_smoothing_spline(t_eval, noisy_V_a)
+smooth_h = lambda t: (6.3 * smooth_V_a(t) ** 0.6) / (D ** 0.4)
 
-true_mrt = np.array([MRT(t) for t in sol.t])
-estimated_mrt = np.array([grey_body_MRT_estimate(noisy_thermocouple_temp_cont(t), noisy_h_cont(t), noisy_T_a_cont(t), epsilon) for t in sol.t]) # estimate is based on noisy real data
+estimated_mrt = np.array([grey_body_MRT_estimate(
+    noisy_thermocouple_temp_cont(t),
+    noisy_h_cont(t),
+    noisy_T_a_cont(t),
+    epsilon
+) for t in sol.t]) # estimate is based on noisy real data
+smooth_estimated_mrt = np.array([grey_body_MRT_estimate(
+    smooth_thermocouple(t),
+    smooth_h(t),
+    smooth_T_a(t),
+    epsilon
+) for t in sol.t]) # estimate is based on smoothed real data
 
 tau = lambda index: constant / (A_shell * (4 * epsilon * sigma * 345 ** 3 + noisy_h_average))
 alpha = lambda index: 1 - np.exp(-((t_eval[1] - t_eval[0]) / tau(index)))
@@ -112,10 +132,11 @@ old_error = float("inf")
 
 
 # We should add the a weights to the smoothing, like what is mentioned on scipy, and look through the given good s range
-for guess in range(24350, 24550, 5):
+for guess in range(5, 10, 5):
     print(f"Testing guess: {guess}")
 
-    smooth_estimated_mrt = make_splrep(t_eval, estimated_mrt, s=guess)
+    # smooth_estimated_mrt = make_splrep(t_eval, estimated_mrt, w=np.power(estimated_mrt_errors, -1), s=guess)
+    smooth_estimated_mrt = make_smoothing_spline(t_eval, estimated_mrt)
     smooth_estimated_mrt = [smooth_estimated_mrt(t) for t in t_eval]
 
     best_recovered_estimated_mrt, best_recovered_true_mrt, _, best_error, _, _ = optimize_recovery(
@@ -138,14 +159,6 @@ for guess in range(24350, 24550, 5):
 
 print(f"Best guess: {best_guess} with error: {old_error}")
 
-# In the real world, we don't know these args exactly. Therefore we pertubate these args to see if we can still
-# accurately recover the true MRT even if we don't know the actual args
-# print(f"Perfect args: {args[1:]}")
-# # args[1] += 5
-# args[2] -= 0.1
-# args[3] += 4
-# args[-1] -= 0.12
-# print(f"Pertubation of args: {args[1:]}\n")
 
 fig, axis  = plt.subplot_mosaic(
     [["Wind", "MRT"],
@@ -183,6 +196,7 @@ axis["Air"].legend()
 axis["Air"].grid()
 
 axis["Globe"].scatter(sol.t / 60, noisy_thermocouple_temp, label="Thermocouple Measurements", color="royalblue", s=4)
+axis["Globe"].scatter(sol.t / 60, [smooth_thermocouple(t) for t in sol.t], label="Thermocouple Measurements", color="grey", s=4)
 # axis["Globe"].plot(sol.t / 60, sol.y[0], label="Simulated Thermocouple", color="green", lw=2.5)
 # axis["Globe"].plot(sol.t / 60, sol.y[1], label="Simulated Shell", color="darkblue", lw=2.5)
 axis["Globe"].set_title("Noisy Thermocouple Measurements")
@@ -190,5 +204,9 @@ axis["Globe"].set_xlabel("Time (min)")
 axis["Globe"].set_ylabel("Temperature (K)")
 axis["Globe"].legend()
 axis["Globe"].grid()
+
+axis["Wind"].scatter(sol.t / 60, [smooth_V_a(t) for t in sol.t], label="Thermocouple Measurements", color="grey", s=4)
+
+axis["Air"].scatter(sol.t / 60, [smooth_T_a(t) for t in sol.t], label="Thermocouple Measurements", color="grey", s=4)
 
 plt.show()

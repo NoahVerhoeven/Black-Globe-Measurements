@@ -9,3 +9,8 @@ from .mrt_recovery import (
     recover_mrt,
     optimize_recovery
 )
+
+
+from .error_propagation import (
+    get_mrt_error
+)
