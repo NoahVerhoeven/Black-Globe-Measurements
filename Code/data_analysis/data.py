@@ -1,39 +1,39 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-fig, axis  = plt.subplots(1, 2, figsize=(8,7))
+fig, axis  = plt.subplots(1, 2, figsize=(12,7))
 
-df = pd.read_csv("Data\First-measurements\B1.CSV")
+df = pd.read_csv("Data\\first_measurements\\B1.CSV")
 df["time_sec"] = df["hour"]*3600 + df["minute"]*60 + df["second"]
 df["time_sec"] = df["time_sec"] / 60
 df.plot(x="time_sec", y="BlackGlobetemp", ax=axis[0], label="B1",color="red")
 df.plot(x="time_sec", y="Davistemp", ax=axis[1], label="B1", color="red", linestyle="--", alpha=0.8)
 
-df = pd.read_csv("Data\First-measurements\B2.CSV")
+df = pd.read_csv("Data\\first_measurements\\B2.CSV")
 df["time_sec"] = df["hour"]*3600 + df["minute"]*60 + df["second"]
 df["time_sec"] = df["time_sec"] / 60
 df.plot(x="time_sec", y="BlackGlobetemp", ax=axis[0], label="B2", color="green")
 df.plot(x="time_sec", y="Davistemp", ax=axis[1], label="B2", color="green", linestyle="--", alpha=0.8)
 
-df = pd.read_csv("Data\First-measurements\BP.CSV")
+df = pd.read_csv("Data\\first_measurements\\BP.CSV")
 df["time_sec"] = df["hour"]*3600 + df["minute"]*60 + df["second"]
 df["time_sec"] = df["time_sec"] / 60
 df.plot(x="time_sec", y="BlackGlobetemp", ax=axis[0], label="BP", color="blue")
 df.plot(x="time_sec", y="Davistemp", ax=axis[1], label="BP", color="blue", linestyle="--", alpha=0.8)
 
-df = pd.read_csv("Data\First-measurements\S1.CSV")
+df = pd.read_csv("Data\\first_measurements\\S1.CSV")
 df["time_sec"] = df["hour"]*3600 + df["minute"]*60 + df["second"]
 df["time_sec"] = df["time_sec"] / 60
 df.plot(x="time_sec", y="BlackGlobetemp", ax=axis[0], label="S1", color="black")
 df.plot(x="time_sec", y="Davistemp", ax=axis[1], label="S1", color="black", linestyle="--", alpha=0.8)
 
-df = pd.read_csv("Data\First-measurements\S2.CSV")
+df = pd.read_csv("Data\\first_measurements\S2.CSV")
 df["time_sec"] = df["hour"]*3600 + df["minute"]*60 + df["second"]
 df["time_sec"] = df["time_sec"] / 60
 df.plot(x="time_sec", y="BlackGlobetemp", ax=axis[0], label="S2", color="purple")
 df.plot(x="time_sec", y="Davistemp", ax=axis[1], label="S2", color="purple", linestyle="--", alpha=0.8)
 
-df = pd.read_csv("Data\First-measurements\Copper.CSV")
+df = pd.read_csv("Data\\first_measurements\\Copper.CSV")
 
 # Create a datetime column for filtering
 df["datetime"] = pd.to_datetime(df[["year", "month", "day", "hour", "minute", "second"]])
@@ -62,5 +62,7 @@ axis[1].set_xlabel("Time (minutes)")
 axis[1].set_ylabel("Davis Temperature")
 axis[1].legend()
 axis[1].grid()
+
+fig.suptitle("First Measurements and Reference")
 
 plt.show()

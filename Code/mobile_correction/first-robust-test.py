@@ -28,13 +28,14 @@ s = len(t_eval)
 # Our recovery algorithm should recover the true MRT, we can therefore quantify how good the alogirthm is (since we know the true MRT)
 
 def V_a(t):
-    V_2 = lambda t: (t - 350) / 20 + 3.5
-    if t <= 350:
+    return 3.5
+    V_2 = lambda t: (t - 500) / 20 + 3.5
+    if t <= 500:
         return 3.5
-    elif t <= 365:
+    elif t <= 515:
         return V_2(t)
     else:
-        return V_2(365)
+        return V_2(515)
         # return - np.e ** (-(t - 350)) / 2 + 4
 
 
@@ -43,6 +44,7 @@ def T_a(t):
 
 
 def MRT(t):
+    # return 350 - t ** 1.5 / 1000
     t_1 = lambda t: 300.2 + np.cos(t/10)
     t_2 = lambda t: 40 * np.sin((t - 400) / 200) + t_1(400)
     t_3 = lambda t: np.exp(-t/850) + t_2(850) - np.exp(-801/850)
@@ -96,16 +98,20 @@ noisy_T_a_cont = make_splrep(t_eval, noisy_T_a)
 noisy_h_cont = lambda t: (6.3 * noisy_V_a_cont(t) ** 0.6) / (D ** 0.4)
 noisy_h_average = np.mean([noisy_h_cont(t) for t in t_eval])
 
+smooth_h = make_splrep(t_eval, [noisy_h_cont(t) for t in t_eval], s=s-np.sqrt(s))
+
 true_mrt = np.array([MRT(t) for t in sol.t])
 estimated_mrt = np.array([grey_body_MRT_estimate(noisy_thermocouple_temp_cont(t), noisy_h_cont(t), noisy_T_a_cont(t), epsilon) for t in sol.t]) # estimate is based on noisy real data
 
-tau = lambda index: constant / (A_shell * (4 * epsilon * sigma * 325 ** 3 + noisy_h_average))
+tau = lambda index: constant / (A_shell * (4 * epsilon * sigma * 345 ** 3 + noisy_h_average))
 alpha = lambda index: 1 - np.exp(-((t_eval[1] - t_eval[0]) / tau(index)))
 
 noisy_args = np.array([noisy_h_cont, noisy_T_a_cont, epsilon, constant, A_shell, A_i, h_i, constant_i])
 
 old_error = float("inf")
 
+
+# We should add the a weights to the smoothing, like what is mentioned on scipy, and look through the given good s range
 for guess in range(24350, 24550, 5):
     print(f"Testing guess: {guess}")
 
