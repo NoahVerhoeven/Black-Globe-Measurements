@@ -44,6 +44,9 @@ def spline_bootstrapping_residuals(t_eval, y, n_boot=400):
     spline = make_smoothing_spline(t_eval, y)
     y_hat = spline(t_eval)
     residuals = y - y_hat
+
+    n = len(t_eval)
+    w = np.array([1/n] * n)
     
     fits = []
     
@@ -51,7 +54,7 @@ def spline_bootstrapping_residuals(t_eval, y, n_boot=400):
         resampled = np.random.choice(residuals, size=len(y), replace=True)
         y_bootstrap = y_hat + resampled
         
-        spline_bootstrap = make_smoothing_spline(t_eval, y_bootstrap)
+        spline_bootstrap = make_smoothing_spline(t_eval, y_bootstrap, w)
         fits.append(spline_bootstrap(t_eval))
     
     fits = np.array(fits)

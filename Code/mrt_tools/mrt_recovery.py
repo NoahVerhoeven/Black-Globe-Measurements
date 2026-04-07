@@ -264,4 +264,3 @@ def optimize_recovery(empirical_mrt, smooth_empirical_mrt, smooth_args, t_eval, 
                 best_recovered_true_mrt = true_mrt
 
         return best_recovered_estimated_mrt, best_recovered_true_mrt, best_window_size, best_error, error_array, window_guesses
-
