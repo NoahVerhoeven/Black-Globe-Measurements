@@ -33,10 +33,15 @@ We therefore move our attention to the problem of smoothing $T_{\text{MRT}, est}
 We therefore purpose the following recovery algorithm
 1. Approximate the functions $h(t)$ and $T_{\text{MRT}, est}$ by  $\hat{h}(t)$ and $\hat{T}_{\text{MRT}, est}$ using a smoothing spline based on the GCV criterion
 2. Construct the exponential smoothing matrix $M$ based on the globe used
-3. Apply $M^{-1}$ to this approximation $\hat{T}_{\text{MRT}, est} $ to obtain $T_{\text{MRT}}$
+3. Apply $M^{-1}$ to this approximation $\hat{T}_{\text{MRT}, est}$ to obtain $T_{\text{MRT}}$
 
-The constant $\tau$ can be a function time depending on the convective heat transfer coefficient $h$. For forced convection, for example, wind speed is a necessary parameter (which might change with time).
+The constant $\tau$ can be a function time depending on the convective heat transfer coefficient $h$. For forced convection, for example, wind speed is a necessary parameter (which might change with time). Below we demonstrated the utility of the method impose a synthetic true MRT which we aimed to recover
+
+![Alt text](https://github.com/NoahVerhoeven/Black-Globe-Measurements/blob/recovery_algorithm/Theoretical%20Background%20Globe%20Thermometer/Figures/Inverse-Exponential-Smoothing-Algorithm-Decreasing.png)
+
 ![Alt text](https://github.com/NoahVerhoeven/Black-Globe-Measurements/blob/recovery_algorithm/Theoretical%20Background%20Globe%20Thermometer/Figures/Inverse-Exponential-Smoothing-Algorithm-Constant.png)
+
+![Alt text](https://github.com/NoahVerhoeven/Black-Globe-Measurements/blob/recovery_algorithm/Theoretical%20Background%20Globe%20Thermometer/Figures/Inverse-Exponential-Smoothing-Algorithm-Realistic.png)
 
 ## Setup
 
