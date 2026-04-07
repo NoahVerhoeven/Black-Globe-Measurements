@@ -1,4 +1,4 @@
-# Mobile correction through moving average reconstruction. Currently, linear growth seems to be the best solution
+# Mobile correction through moving average reconstruction
 
 from matplotlib import cm
 import numpy as np

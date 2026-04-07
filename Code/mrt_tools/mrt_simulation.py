@@ -16,3 +16,12 @@ def dTdt(t, T, MRT_func, args):
     return [dT_i, dT_g]
 
 
+def dTdt_shell_only(t, T, MRT_func, args):
+    h,  T_a, epsilon, constant, A = args
+    sigma = 5.67 * 10 ** -8
+
+    T_g = T[0]
+
+    dT_g = (A * (sigma * epsilon * MRT_func(t) ** 4 - sigma * epsilon * T_g ** 4 - h(t) * (T_g - T_a(t)))) / constant
+
+    return [dT_g]

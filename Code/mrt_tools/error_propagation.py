@@ -1,5 +1,5 @@
 import numpy as np
-
+from scipy.interpolate import make_smoothing_spline
 
 def get_mrt_error(
         T_mrt: list,
@@ -40,6 +40,28 @@ def get_mrt_error(
     return errors
 
 
+def spline_bootstrapping_residuals(t_eval, y, n_boot=400):
+    spline = make_smoothing_spline(t_eval, y)
+    y_hat = spline(t_eval)
+    residuals = y - y_hat
+    
+    fits = []
+    
+    for _ in range(n_boot):
+        resampled = np.random.choice(residuals, size=len(y), replace=True)
+        y_bootstrap = y_hat + resampled
+        
+        spline_bootstrap = make_smoothing_spline(t_eval, y_bootstrap)
+        fits.append(spline_bootstrap(t_eval))
+    
+    fits = np.array(fits)
+    
+    lower_band = np.percentile(fits, 2.5, axis=0)
+    upper_band = np.percentile(fits, 97.5, axis=0)
+
+    return lower_band, upper_band
+
+
 if __name__ == "__main__":
     T_mrt = [1, 2, 3]
     T_g = [1, 2, 3]
@@ -51,3 +73,5 @@ if __name__ == "__main__":
     sigma_V = 0.5
 
     print(get_mrt_error(T_mrt, T_g, T_a, V_a, sigma_g, sigma_a, sigma_V))
+
+    # jackknife_confidence_intervals(x, y, f)

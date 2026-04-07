@@ -1,6 +1,7 @@
 from .mrt_simulation import (
     grey_body_MRT_estimate,
-    dTdt
+    dTdt,
+    dTdt_shell_only
 )
 
 from .mrt_recovery import (
@@ -12,5 +13,6 @@ from .mrt_recovery import (
 
 
 from .error_propagation import (
-    get_mrt_error
+    get_mrt_error,
+    spline_bootstrapping_residuals
 )
