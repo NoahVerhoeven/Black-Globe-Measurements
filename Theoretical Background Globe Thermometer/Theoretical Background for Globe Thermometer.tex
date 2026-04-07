@@ -303,7 +303,12 @@ In the paper "Assessment of black globe thermometers employing various sensors a
 
 To achieve this, we use the response times obtained from the IR sensor. This sensor has a reported accuracy of $\pm 0.5\unit{\kelvin}$. We therefore determine the simulated 'response' by checking when our estimated MRT is within 0.5 of the true MRT. (now include the figures)
 
-
+\subsection{Convective Heat Transfer Coefficient}
+We note that in our project, we are dealing with forced convection, as such a good formula for the convective heat transfer coefficient $h$ is
+$$
+h = 6.7\frac{V_a^{0.6}}{D^{0.4}}
+$$
+which is valid in standard conditions. For higher wind speeds, the rate of change of the heat of the globe will be high, and we reach equilibrium much faster. \textbf{It is very important to emphasize that the convective heat transfer coefficient doesn't the true MRT, only our estimate, since the heat ex}
 \section{Recreating the true MRT function}
 
 From our simulations we see that direct estimation with our equation \eqref{eq:ideal-grey} isn't accurate for a non-static environment, thus meaning a changing true MRT function. In order to allow accurate measurements of the true MRT, our estimates need to be manipulated. In the context of this manuscript, we will refer to this process as 'recreating' the true MRT function based on the provided estimates. In general, we seek a transformation $\divideontimes$ such that
@@ -390,8 +395,112 @@ Based on these results, we propose the following method to recover the true MRT 
 \\
 
 We can test this again through simulations, we choose a true MRT and simulate our estimated MRT. We can add a little noise to this simulated estimate to mimic real empirical data. We than perform the procedure as mentioned above. The resulting estimate for the true MRT can be quantitatively compared to the synthetic true MRT.
+\\
+
+We do emphasize the fact that this is based on the assumption of continuous and smooth functions. This will in empirical data be true because of statistical noise. To recover the true MRT, we need to first smooth over our empirical data. We currently have two suggestions, \textbf{we either use a moving average again, but also keep in mind further points and we center around the current point (thus would mean that the diagonal element will always be the biggest in the row), this smooths over data but will ultimately result in noisy recovered true MRT. Alternatively, we can use spline smoothing, since this by definition results in a smooth and continuous fit to the data the recovered MRT will also be smooth and continuous.}
 
 \subsubsection{Mathematical Justification}
+Let's look at the ODE
+$$
+\diff{g}{t} = \frac{1}{\tau(t)}\left(u(t) - g(t)\right)
+$$
+We view $u(t)$ as some input signal that 'controls' were $g(t)$ goes, $\tau$ is a positive constant. If $u(t) > g(t)$, than $g(t)$ will increase (positive derivative), it will start slowing down as it approaches $u(t)$ and stop if they are equal. The constant $\tau$ determines have fast this process happens. We see that, for such systems, we can associate a vector field
+$$
+\mathbf{F} = \begin{pmatrix}
+\tau(t) \\ g - u(t)
+\end{pmatrix}\, \text{and}\, \dl{\mathbf{a}} = \begin{pmatrix}
+\dl g \\ \dl t
+\end{pmatrix} \quad \Longrightarrow \quad \mathbf{F} \cdot \dl{\mathbf{a}} = 0
+$$
+Now, if $\mathbf{F}$ is conservative, than there exist a scalarfield such $\mathbf{F} = \grad{f}$. For this to be true, we check the following identity
+$$\curl{\mathbf{F}} = \begin{vmatrix}
+	\mathbf{e}_1 & \mathbf{e}_2 & \mathbf{e}_3 \\
+	\partial_g & \partial_t & 0 \\
+	\tau(t) & g - u(t)& 0
+\end{vmatrix} = \begin{pmatrix}
+0 \\ 0 \\ 1 - \partial_t \tau(t)
+\end{pmatrix} \neq \mathbf{0}
+$$
+In general, this vectorfield thus isn't conservative, we therefore find an integrating factor $\mu(g, t)$ such that it is. We find the integrating factor to be
+$$
+\mu(t) = e^{\int \frac{1 - \dot{\tau}(t)}{\tau(t)}\dl t }
+$$
+The scalarfield $f = c$ has to be a constant, we find that
+$$
+\partial_g f = \mu(t)\tau(t) = 0 \quad \text{and}  \quad \partial_t f = \mu(t)\left(g - u(t)\right) = 0
+$$
+Integrating both these differential equations leads to
+$$
+f = \mu(t)\tau(t)g + C_1(t) \quad \text{and} \quad f = \int \mu(t)\left(g - u(t)\right)\dl t + C_2(g)
+$$
+It necessarily follows that $C_2(g) = 0$, since in the first identity of $f$ no (sole) $g$-dependence is found. 
+\subsubsection{Complete Algorithm}
+The central assumption of this algorithm is that the true MRT is a smooth and continuous function. To preserve this quality, we must first find continuous versions of our data. To do this, we employ spline smoothing. This way the data gets smoothed out by fitting splines. This is done to all relevant time dependent variables (wind speed, air temperature and thermocouple measurements). These continuous variables, alongside other constants like globe density
+\\
 
+After we obtain continuous versions of our time dependent data, we calculate the smooth estimate of our MRT (we use the continuous variables for this to ensure a continuous MRT estimate).
+\\
 
+We, mathematically, found that the globe thermometer is a low-pass filter for the true MRT. So, conceptually, we can view the estimated MRT as a moving average of the true MRT (see mathematical justification). By inverting this moving average operation, we can recover the true MRT. To do this, we use a linearly decaying moving average matrix.
+\\
+
+The results of this moving average depend on the window size, bigger window sizes will take more of the previous points into account. Therefore, we try to find the optimal window size numerically.
+\\
+
+For each window size, we find the inverted moving average matrix and apply this to our smoothed out estimate. This results in a continuous guess for the true MRT. We use this guess, in additional with the other time dependent variables, to simulate our thermocouple measurements (see non-equilibrium states). We assign this window guess an error based on the difference between the real and simulated thermocouple measurements.
+\\
+
+If the error is small, than the underlying guess for the true MRT must decent, if the error is big, the underlying guess for the true MRT is bad. We now repeat the procedure of guessing windows until we found the window size that minimizes the error between the simulated and real thermocouple measurements.
+\\
+
+In figure \ref{fig:robust-test} we used this method, we artificially added noise to our thermocouple data. In the ideal case, we perfectly recover the true MRT (red line), however, we see that this procedure results in a close approximation of this true MRT.
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{Robust-moving-average-test}
+	\caption{}
+	\label{fig:robust-test}
+\end{figure}
+
+A possible issue with this method is the over- or under smoothing of the time dependent variables. Under smoothing leads to rapidly oscillating recovered MRT (this is because of the high number of oscillating splines). This can be easily caught, as it produces physically unrealistic true MRT estimates, this is of course assuming that we have prior knowledge of the environment were we take measurements. If we over smooth, these oscillations won't be present, but our recovered estimate can start to drift. Over smoothing can visually be caught by looking at the fit between the data and the spline. A good baseline for the smoothing parameter in scipy is
+$$
+\text{smoothing parameter} = \text{length data} \cdot \text{standard deviation of measurements}^{1.5}
+$$
+If non-physical oscillation is present, increase the parameter slightly until they disappear. We also advocate for slight over smoothing rather than under smoothing. This method can be used in for project, as it is robust against sudden (continuous) jumps, below we model a sudden jump in wind speed, which can occur when suddenly changing direction. The recovered true MRT shows a sudden spike in the same place, but quickly goes back to accurately following the right MRT.
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{Robust-moving-average-test-jump}
+	\caption{}
+	\label{fig:robust-test-jump}
+\end{figure}
+\textbf{The newest version of the algorithm doesn't numerically find the optimal window. Instead, we can derive (by linearizing the ODE) the smoothing parameter $\alpha$ used in the exponential smoothing. Exponential smoothing can still be seen as a moving average, expect in our algorithm the window size is necessarily the same the length of our data. So for exponential smoothing, our matrix will be a lower triangular matrix with the same properties as before. We can still take it's inverse to recover the true MRT. We do this because our globe thermometer conceptually represents a IIR filter (infinite response filter). Additionally, we now spline smooth the estimates directly (which is computationally more viable). We use the 'De wet van foutenpropagatie', see our course in statistics, to determine the standard deviations from our original measurements, we assume these to be independent. We find based on \eqref{eq:ideal-grey} that}
+$$
+\diffp{T_{\text{MRT}}}{T_g} = \frac{1}{4}\left(T_g^4 + \frac{6.3V_a^{0.6}}{a_g\sigma D^{0.4}}\left(T_g - T_a\right)\right)^{-\frac{3}{4}}\left(4T_g^3 + \frac{6.3V_a^{0.6}}{a_g\sigma D^{0.4}}\right)
+$$
+$$
+\diffp{T_{\text{MRT}}}{T_a} = -\frac{6.3V_a^{0.6}}{4a_g\sigma D^{0.4}}\left(T_g^4 + \frac{6.3V_a^{0.6}}{a_g\sigma D^{0.4}}\left(T_g - T_a\right)\right)^{-\frac{3}{4}}
+$$
+$$
+\diffp{T_{\text{MRT}}}{V_a} = \frac{1}{4}\left(T_g^4 + \frac{6.3V_a^{0.6}}{a_g\sigma D^{0.4}}\left(T_g - T_a\right)\right)^{-\frac{3}{4}}\left(\frac{0.6\cdot6.3V_a^{-0.4}}{a_g\sigma D^{0.4}}\left(T_g - T_a\right)\right)
+$$
+With the vector
+$$
+\mathbf{D} = \begin{pmatrix}
+	\diffp{T_{\text{MRT}}}{T_g} \\
+	\diffp{T_{\text{MRT}}}{T_a} \\
+	\diffp{T_{\text{MRT}}}{V_a}
+\end{pmatrix}
+$$
+And covariance matrix
+$$
+\mathbf{M} = \begin{bmatrix}
+	\sigma_{T_g}^2 & 0 & 0 \\
+	0 & \sigma_{T_a}^2 & 0 \\
+	0 & 0 & \sigma_{V_a}^2
+\end{bmatrix}
+$$
+We find that the error for our estimate is
+$$
+\sigma_{T_{\text{MRT}}}^2 = \mathbf{D}^T\mathbf{M}\mathbf{D}
+$$
+Alternatively, we could just measure this lol. Which would be difficult, as we can't provide the necessary controlled environment for this. We needs this parameter to estimate the smoothing parameter and for uncertainty estimates in
 \end{document}

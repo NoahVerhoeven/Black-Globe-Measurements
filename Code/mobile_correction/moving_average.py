@@ -43,6 +43,8 @@ h_i = 2 # (3 * V_a ** 0.6) / (D_i ** 0.4)
 n_i = rho_i * V_i / M_i # Number of moles of the inner part [mol]
 constant_i = c_i * n_i # [J/K]
 
+args = (h,  T_a, epsilon, constant, A, A_i, h_i, constant_i)
+
 
 def MRT(t):
     t_1 = lambda t: 300.2 + np.cos(t/10)
@@ -56,9 +58,8 @@ def MRT(t):
     else:
         return t_3(t)
 
-    
 
-sol = solve_ivp(dTdt, [0, minutes*60], [295, 295], args=(MRT, h, T_a, epsilon, constant, A, A_i, h_i, constant_i), method="Radau", t_eval=np.linspace(0, minutes*60, 1000)) # Implicite method to acount for stiffness
+sol = solve_ivp(dTdt, [0, minutes*60], [295, 295], args=(MRT, args), method="Radau", t_eval=np.linspace(0, minutes*60, 1000)) # Implicite method to acount for stiffness
 
 inner_temp = sol.y[0]
 shell_temp = sol.y[1]
@@ -71,7 +72,7 @@ best_window_size = 80
 mode = "exponential decay"
 
 for window_size in range(50,350):
-    A = moving_average_matrix(true_mrt, window_size, mode=mode, base=1.018)
+    A = moving_average_matrix(true_mrt, window_size, mode=mode, base_func=1.018)
 
     moving_average_over_true_mrt = A@true_mrt
 
