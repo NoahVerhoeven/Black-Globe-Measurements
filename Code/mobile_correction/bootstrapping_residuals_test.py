@@ -35,11 +35,11 @@ def V_a(t):
 
 
 def T_a(t):
-    return 295
+    return 310 - t/1000
 
 
 def MRT(t):
-    return 350
+    # return 350
     t_1 = lambda t: 300.2 + np.cos(t/10)
     t_2 = lambda t: 40 * np.sin((t - 400) / 200) + t_1(400)
     t_3 = lambda t: np.exp(-t/850) + t_2(850) - np.exp(-801/850)
@@ -54,10 +54,15 @@ def MRT(t):
 
 # CONSTANTS: We'll work with the shell-only simulation
 sigma = 5.67037 * 10 ** -8 # [J/s*m^2*K^4]
-thickness = 2 * 10 ** -3 # Thickness of the globe shell [m]
-epsilon = 0.95  # Emissivity of black paint
+thickness = 0.4 * 10 ** -3 # Thickness of the globe shell [m]
+epsilon = 0.98  # Emissivity of black paint
+
 rho = 8960  # Density of the globe (copper) [kg/m3]
+# rho = 1100  # Density of the globe (PLA) [kg/m3]
+
 c = 384 # Specific heat capacity of the globe (copper) [J/kg*K]
+# c = 1506 # Specific heat capacity of the globe (PLA) [J/kg*K]
+
 D = 150 * 10 ** -3  # Diameter of the shell [m]
 V = quad(lambda r: 4 * np.pi * r ** 2, (D - thickness)/2, D/2)[0] # Volume of the globe [m3]
 A = 4 * np.pi * (D/2) ** 2 # Surface area of the globe [m2]
@@ -71,7 +76,7 @@ args = np.array([h,  T_a, epsilon, constant, A])
 sol = solve_ivp(
     dTdt_shell_only,
     [t_eval[0], t_eval[-1]],
-    [295],
+    [T_a(0)],
     args=(MRT, args),
     method="Radau",
     t_eval=t_eval
@@ -79,9 +84,9 @@ sol = solve_ivp(
 true_mrt = np.array([MRT(t) for t in sol.t])
 
 # SIMULATE REAL EMPIRICAL DATA: We add noise (zero-mean Gaussian) to simulate statistical error in our measurements
-noisy_T_g = sol.y[0] + np.random.normal(0, 0.5, sol.t.shape)
-noisy_V_a = np.array([V_a(t) for t in sol.t]) + np.random.normal(0, 0.2, sol.t.shape)
-noisy_T_a = np.array([T_a(t) for t in sol.t]) + np.random.normal(0, 0.5, sol.t.shape)
+noisy_T_g = sol.y[0] + np.random.normal(0, 1, sol.t.shape)
+noisy_V_a = np.array([V_a(t) for t in sol.t]) + np.random.normal(0, 0.5, sol.t.shape)
+noisy_T_a = np.array([T_a(t) for t in sol.t]) + np.random.normal(0, 1, sol.t.shape)
 noisy_h = lambda i: (6.3 * noisy_V_a[i] ** 0.6) / (D ** 0.4)
 
 # ESTIMATE MRT: We use the grey body estimate to guess the MRT from our 'empirical' data
@@ -97,7 +102,7 @@ smooth_func = make_smoothing_spline(sol.t, empirical_data, w)
 smooth_estimated_mrt = smooth_func(sol.t)
 
 # CONFIDENCE INTERVAL (estimate): We'll bootstrap residual to find the upper and lower bands were 95% of the true function lays
-lower_estimate, upper_estimate = spline_bootstrapping_residuals(sol.t, empirical_data, 250)
+lower_estimate, upper_estimate = spline_bootstrapping_residuals(sol.t, empirical_data, 25)
 outside_estimate = 0
 inside_estimate = 0
 
@@ -162,7 +167,7 @@ axis["Sim"].scatter(sol.t / 60, empirical_data, alpha=0.7, s=3.5, label="Empiric
 axis["Sim"].fill_between(sol.t / 60, lower_estimate, upper_estimate, color="lightblue", label="95% Confidence Interval", lw=2.5)
 axis["Sim"].plot(sol.t / 60, smooth_estimated_mrt, color="blue", label="Smoothing Spline", lw=2.5)
 # axis[0].plot(sol.t, estimated_mrt, color="black", label="Target Function (Estimate)")
-axis["Sim"].plot(t_eval / 60, smooth_recovered_mrt, label="Recovered MRT", color="red", lw=2.5)
+axis["Sim"].plot(t_eval[1:] / 60, smooth_recovered_mrt[1:], label="Recovered MRT", color="red", lw=2.5)
 axis["Sim"].set_ylabel('Temperature (K)')
 axis["Sim"].set_title('Recovered MRT from Simulated Empirical Data')
 axis["Sim"].grid()
@@ -173,7 +178,7 @@ axis["Tar"].plot(t_eval / 60, estimated_mrt, color="grey", label="Target Functio
 # axis[1].fill_between(sol.t / 60, lower_recovered, upper_recovered, color="lightcoral", label="95% Confidence Interval")
 axis["Tar"].fill_between(sol.t / 60, lower_estimate, upper_estimate, color="lightblue", label="95% Confidence Interval")
 axis["Tar"].plot(sol.t / 60, smooth_estimated_mrt, color="blue", label="Smoothing Spline", lw=2.5, linestyle="dashed")
-axis["Tar"].plot(t_eval / 60, smooth_recovered_mrt, label="Recovered MRT", color="red", lw=2.5, linestyle="dashed")
+axis["Tar"].plot(t_eval[1:] / 60, smooth_recovered_mrt[1:], label="Recovered MRT", color="red", lw=2.5, linestyle="dashed")
 axis["Tar"].grid()
 axis["Tar"].legend()
 axis["Tar"].set_xlabel("Time (min)")
@@ -181,17 +186,17 @@ axis["Tar"].set_ylabel('Temperature (K)')
 axis["Tar"].set_title('Target Functions')
 
 axis["Wind"].set_title("Simulated Wind Speed Measurements")
-axis["Wind"].scatter(sol.t / 60, noisy_V_a, alpha=0.7, s=3.5, label="Empirical Data", lw=2, color="mediumorchid")
+axis["Wind"].scatter(sol.t / 60, noisy_V_a, alpha=0.7, s=3.5, label="Empirical Data", lw=2, color="mediumorchid", marker="v")
 axis["Wind"].grid()
 axis["Wind"].set_ylabel("Wind Speed (m/s)")
 
 axis["Air"].set_title("Simulated Air Temperature Measurements")
-axis["Air"].scatter(sol.t / 60, noisy_T_a, alpha=0.7, s=3.5, label="Empirical Data", lw=2, color="mediumpurple")
+axis["Air"].scatter(sol.t / 60, noisy_T_a, alpha=0.7, s=3.5, label="Empirical Data", lw=2, color="mediumpurple", marker=">")
 axis["Air"].grid()
 axis["Air"].set_ylabel("Temperature (K)")
 
 axis["T_g"].set_title("Simulated Globe Temperature Measurements")
-axis["T_g"].scatter(sol.t / 60, noisy_T_g, alpha=0.7, s=3.5, label="Empirical Data", lw=2, color="royalblue")
+axis["T_g"].scatter(sol.t / 60, noisy_T_g, alpha=0.7, s=3.5, label="Empirical Data", lw=2, color="royalblue", marker="^")
 axis["T_g"].grid()
 axis["T_g"].set_ylabel("Temperature (K)")
 axis["T_g"].set_xlabel("Time (min)")
