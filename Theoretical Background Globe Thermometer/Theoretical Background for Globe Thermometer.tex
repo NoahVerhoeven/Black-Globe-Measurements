@@ -503,4 +503,128 @@ $$
 \sigma_{T_{\text{MRT}}}^2 = \mathbf{D}^T\mathbf{M}\mathbf{D}
 $$
 Alternatively, we could just measure this lol. Which would be difficult, as we can't provide the necessary controlled environment for this. We needs this parameter to estimate the smoothing parameter and for uncertainty estimates in
+
+\subsection{Exponential Smoothing}
+Linear inhomogeneous ODE are of the form
+$$
+\frac{\dl y}{\dl x} + p(x)y = f(x) 
+$$
+With this, we can associate the vectorfield
+$$
+\mathbf{G} = 
+\begin{pmatrix}
+	p(x)y - f(x) \\ 1
+\end{pmatrix}
+$$
+In general, this vectorfield isn't conservative since
+$$
+\curl{\mathbf{G}} = \begin{pmatrix}
+	0 \\ 0 \\ -p(x)
+\end{pmatrix}
+$$
+However, by using the integrating factor $\mu(x) = e^{\int_{0}^x p(u)du}$, we do find that
+$$
+\curl{\mu(x)\mathbf{G}} = \begin{pmatrix}
+	0 \\ 0 \\ 0
+\end{pmatrix}
+$$
+Where we used the fact that $\diff{\mu(x)}{x} = p(x)\mu(x)$. Since this new vectorfield is conservative, there must exist a scalarfield such that
+$$
+\mu(x)\mathbf{G} = \grad{g}
+$$
+From this we first draw
+$$
+\diffp{g}{y} = \mu(x) \quad \Longrightarrow \quad g = \mu(x)y + C_x(x) \quad \Longrightarrow \quad \diffp{g}{x} = \diff{\mu(x)}{x}y + \mu(x)\diff{y}{x} + \diff{C_x(x)}{x}
+$$
+Using the identity above, the original ODE and the fact that $g$ is a constant $C$, we find
+$$
+\diffp{g}{x} = \mu(x)f(x) + \diff{C_x(x)}{x} \quad \Longrightarrow \quad C_x = -\int \mu(x)f(x)dx
+$$
+We therefore find
+$$
+y(x) = \frac{1}{\mu(x)}\left(g - C_x(x)\right) = \frac{1}{\mu(x)}\left(C + \int_0^x \mu(s)f(s)ds\right)
+$$
+We know look at
+$$
+\diff{y}{x} = \frac{1}{\tau(x)}\left(s(x) - y\right)
+$$
+Using our result we find that
+$$
+y(x) = \frac{1}{\mu(x)}\left(y_0 + \int_0^x \mu(u)\frac{s(u)}{\tau(u)}du\right) \quad \text{with} \quad \mu(x) = e^{\int_0^x \frac{1}{\tau(\zeta)}d\zeta}
+$$
+We have the following identity
+$$
+\frac{\mu(u)}{\mu(x)} = e^{\int_0^u \frac{1}{\tau(\zeta)}d\zeta - \int_0^x \frac{1}{\tau(\zeta)}d\zeta} = e^{\int_x^u \frac{1}{\tau(\zeta)}d\zeta} = e^{\int_0^{u-x} \frac{1}{\tau(\zeta - x)}d\zeta}
+$$
+Such that we can neatly write
+$$
+y(x) = \int_{0}^x \exp(-\int_u^{x} \frac{1}{\tau(\zeta)}d\zeta)\frac{s(u)}{\tau(u)}du + \frac{y_0}{\mu(x)}
+$$
+If we imagine $\tau$ as a constant we find
+$$
+y(t) = \frac{1}{\tau}\int_{t_0}^{t}e^{-\frac{t-u}{\tau}}s(u)du + y_0e^{-\frac{t - t_0}{\tau}}
+$$
+We now want to discretize this, for this we'll use the time stamps $t_k = k\Delta t$, for the constant $\tau$ we find that one time step is given by
+$$
+y(t_k) = y_k= \frac{1}{\tau}\int_{t_{k-1}}^{t_k}e^{-\frac{t_k-u}{\tau}}s(u)du + y_{k-1}e^{-\frac{\Delta t}{\tau}} \approx \frac{s_k}{\tau}\int_{t_{k-1}}^{t_k}e^{-\frac{t_k-u}{\tau}}du + y_{k-1}e^{-\frac{\Delta t}{\tau}}
+$$
+We justify this approximation by taking $\Delta$ very small, and therefore assuming that $s(u)$ is constant over the interval. For our empirical data, this is also justified, as we only have the one data $s(t_k)$ to work with. Now we just explicitely work out the integral to find
+$$
+y_k = s_ke^{-\frac{t_k}{\tau}}\left(e^{\frac{t_k}{\tau}} - e^{\frac{t_{k-1}}{\tau}}\right) + y_{k-1}e^{-\frac{\Delta t}{\tau}} = s_k\left(1 - e^{-\frac{\Delta t}{\tau}}\right) + y_{k-1}e^{-\frac{\Delta t}{\tau}}
+$$
+By defining the smoothing parameter
+$$
+\alpha = 1 - e^{-\frac{\Delta t}{\tau}}
+$$
+We find that
+$$
+y_k = \left(1-\alpha\right)y_{k-1} + \alpha s_k
+$$
+Which is the exact formula for exponential smoothing. Using this smoothing parameter, we can construct a matrix $M$ which represents the smoothing operations, which can then in turn be inverted to recover the input signal $s(t)$ from the response $y(t)$. Alternatively, we can find it based on
+$$
+s_k = \frac{y_{k} - (1-\alpha) y_{k-1}}{\alpha}
+$$
+We try a similar approach to the non-constant $\tau$ case
+$$
+y_k = \int_{t_{k-1}}^{t_k} \exp(-\int_u^{t_k} \frac{1}{\tau(\zeta)}d\zeta)\frac{s(u)}{\tau(u)}du + y_{k-1}e^{-\int_{t_{k-1}}^{t_k}\frac{1}{\tau(\zeta)}d\zeta}
+$$
+We can apply a similar logic that in the interval between $t_{k-1}$ and $t_k$ we only have the one singular data point to work. So we assume this value to be constant over the interval. This gives us
+$$
+y_k \approx \frac{s_k}{\tau_k}\int_{t_{k-1}}^{t_k}e^{-\frac{t_k - u}{\tau_k}}du + y_{k-1}e^{-\frac{\Delta t}{\tau_k}}
+$$
+We want to emphasis that the dummy variable $u$ in this first integral is contained within $\left[t_{k-1}, t_k\right]$. Therefore, the integral $\int_u^{t_k} \frac{1}{\tau(\zeta)}d\zeta$ is within the interval where we assume a constant $\tau_k$. We can already see that this is the exact same expression as before, expect for $\tau_k$ which is dependent on the interval we look at. We therefore define the interval specific smoothing parameter
+$$
+\alpha_k = 1 - e^{-\frac{\Delta t}{\tau_k}}
+$$
+Such that
+$$
+s_k = \frac{y_k - (1 - \alpha_k)y_{k-1}}{\alpha_k}
+$$
+Lastly, we linearize our original differential equation. Our temperature terms abide by $g(T) = T^4$, we taylor expand around $T_0$ this to first order we find that
+$$
+g(T) = T^4 \approx T_0^4 + 4T_0^3(T-T_0)
+$$
+We apply this to both temperatures around the same $T_0$ in our original ODE
+\begin{equation}
+\begin{split}
+	\dot{T}_g &= \frac{A}{\rho_gV_gc_{P,g}}\left[a_g\sigma T^4_{\text{MRT}} - \epsilon_g\sigma T^4_g - h\left(T_g - T_a\right)\right]
+	\\
+	&\approx\frac{A}{\rho_gV_gc_{P,g}}\left[4a_g\sigma T_0^3(T_{\text{MRT}} - T_0) - 4\epsilon_g\sigma T_0^3(T_g - T_0) - h\left(T_g - T_a\right)\right]
+	\\
+	&=\frac{A}{\rho_gV_gc_{P,g}}\left[4\epsilon_g\sigma T_0^3(T_{\text{MRT}} - T_g) - h\left(T_g - T_a\right)\right]
+	\\
+	&=\frac{A}{\rho_gV_gc_{P,g}}\left[4\epsilon_g\sigma T_0^3T_{\text{MRT}}+hT_a-(4\epsilon_g\sigma T_0^3 + h)T_g\right]
+	\\
+	&=\frac{A(4\epsilon_g\sigma T_0^3 + h)}{\rho_gV_gc_{P,g}}\left[\frac{4\epsilon_g\sigma T_0^3T_{\text{MRT}}+hT_a}{4\epsilon_g\sigma T_0^3 + h}-T_g\right]
+\end{split}
+\end{equation}
+By linearizing our system we indeed find a first order inhomogenuous ODE, as such we can approximate what our globe thermometer does internally as exponential smoothing. This gives us the mathematical justification for using the inverse of this smoothing operation to recover the signal (in this case true MRT). We note, however, that we choose to taylor expand our the same $T_0$ for simplicity sack. The true MRT and globe temperature can however be very different, meaning that $T_0$ might not be a good fit for both values. If we taylor expand around different values we find that
+$$
+\dot{T_g} = \frac{A(4\epsilon_g\sigma T_{0,g}^3 + h)}{\rho_gV_gc_{P,g}}\left[\frac{4\epsilon_g\sigma T_{0,\text{MRT}}^3 (T_{\text{MRT}} -T_{0,\text{MRT}}) + 4\epsilon_g\sigma T_{0,g}^4 + hT_a}{4\epsilon_g\sigma T_{0,g}^3 + h}-T_g\right]
+$$
+From this we draw that 
+$$
+\frac{1}{\tau} = \frac{A(4\epsilon_g\sigma T_{0,g}^3 + h)}{\rho_gV_gc_{P,g}}
+$$
+We therefore suggest that in the exponential smoothing, values around the globe temperature are better.
 \end{document}

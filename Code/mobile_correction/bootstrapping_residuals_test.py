@@ -95,10 +95,10 @@ estimated_mrt = np.array([grey_body_MRT_estimate(sol.y[0][i], h(t), T_a(t), epsi
 
 # SMOOTHING: We apply spline smoothing based on the GCV criterion
 h_spline = make_smoothing_spline(t_eval, [noisy_h(i) for i in range(len(t_eval))], w)
-tau = lambda index: (constant - 0) / ((A + 0.0) * (4 * (epsilon - 0.0) * sigma * 345 ** 3 + h_spline(t_eval[index])))
+tau = lambda index: (constant - 0) / ((A + 0.0) * (4 * (epsilon - 0.0) * sigma * np.mean(noisy_T_g) ** 3 + h_spline(t_eval[index])))
 alpha = lambda index: 1 - np.exp(-((t_eval[1] - t_eval[0]) / tau(index)))
 
-smooth_func = make_smoothing_spline(sol.t, empirical_data, w)
+smooth_func = make_smoothing_spline(sol.t, empirical_data, w, lam=150)
 smooth_estimated_mrt = smooth_func(sol.t)
 
 # CONFIDENCE INTERVAL (estimate): We'll bootstrap residual to find the upper and lower bands were 95% of the true function lays
@@ -125,8 +125,14 @@ M = moving_average_matrix(
     )
 M_inv = inv(M)
 
-recovered_mrt = M_inv@empirical_data
+# recovered_mrt = M_inv@empirical_data
 smooth_recovered_mrt = M_inv@smooth_estimated_mrt
+
+s = [smooth_estimated_mrt[0] / alpha(0)]
+for k, _ in enumerate(t_eval[1:]):
+    k += 1
+    s_k = (smooth_estimated_mrt[k] - (1 - alpha(k)) * smooth_estimated_mrt[k-1]) / alpha(k)
+    s.append(s_k)
 
 # CONFIDENCE INTERVAL (recovery): Doesn't work on recovered data, since noise is too amplified for bootstrapping residuals
 # lower_recovered, upper_recovered = spline_bootstrapping_residuals(sol.t, recovered_mrt, 200)
@@ -168,6 +174,7 @@ axis["Sim"].fill_between(sol.t / 60, lower_estimate, upper_estimate, color="ligh
 axis["Sim"].plot(sol.t / 60, smooth_estimated_mrt, color="blue", label="Smoothing Spline", lw=2.5)
 # axis[0].plot(sol.t, estimated_mrt, color="black", label="Target Function (Estimate)")
 axis["Sim"].plot(t_eval[1:] / 60, smooth_recovered_mrt[1:], label="Recovered MRT", color="red", lw=2.5)
+axis["Sim"].plot(t_eval[1:] / 60, s[1:], label="Recovered s", color="green", lw=2.5)
 axis["Sim"].set_ylabel('Temperature (K)')
 axis["Sim"].set_title('Recovered MRT from Simulated Empirical Data')
 axis["Sim"].grid()
