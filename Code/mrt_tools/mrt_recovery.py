@@ -264,3 +264,19 @@ def optimize_recovery(empirical_mrt, smooth_empirical_mrt, smooth_args, t_eval, 
                 best_recovered_true_mrt = true_mrt
 
         return best_recovered_estimated_mrt, best_recovered_true_mrt, best_window_size, best_error, error_array, window_guesses
+
+
+def inverse_exponential_smoothing(
+        smooth_estimated_mrt: list,
+        alpha: callable,
+        t_eval: list
+):
+    s = [smooth_estimated_mrt[0]]
+
+    for k, _ in enumerate(t_eval[1:]):
+        k += 1
+
+        s_k = (smooth_estimated_mrt[k] - (1 - alpha(k)) * smooth_estimated_mrt[k-1]) / alpha(k)
+        s.append(s_k)
+
+    return np.array(s)
