@@ -3,11 +3,11 @@ import numpy as np
 from numpy.linalg import inv
 import matplotlib.pyplot as plt
 from scipy.integrate import solve_ivp, quad
-from scipy.interpolate import interp1d, UnivariateSpline, make_splrep, make_smoothing_spline
+from scipy.differentiate import derivative
+from scipy.interpolate import make_smoothing_spline
 from mrt_tools import (
     dTdt_shell_only,
     grey_body_MRT_estimate,
-    spline_bootstrapping_residuals,
     inverse_exponential_smoothing
 )
 import matplotlib as mpl
@@ -15,12 +15,13 @@ import matplotlib as mpl
 mpl.rcParams['font.family'] = 'Times New Roman'
 
 minutes = 25
-n = minutes * 10
+n=minutes * 8
 t_eval = np.linspace(0, minutes*60, n)
 w = np.array([1/n] * n)
 
 # UNDERLYING FUNCTIONS: These are the 'functions' which we'll measure in the field
 def V_a(t):
+    return np.sin(t/80) + 3.5
     V_2 = lambda t: (t - 500) / 20 + 3.5
     if t <= 500:
         return 3.5
@@ -36,7 +37,7 @@ def T_a(t):
 
 
 def MRT(t):
-    # return 350
+    # return 400
     t_1 = lambda t: 300.2 + np.cos(t/10)
     t_2 = lambda t: 40 * np.sin((t - 400) / 200) + t_1(400)
     t_3 = lambda t: np.exp(-t/850) + t_2(850) - np.exp(-801/850)
@@ -51,14 +52,16 @@ def MRT(t):
 
 # CONSTANTS: We'll work with the shell-only simulation
 sigma = 5.67037 * 10 ** -8 # [J/s*m^2*K^4]
-thickness = 0.4 * 10 ** -3 # Thickness of the globe shell [m]
-epsilon = 0.98  # Emissivity of black paint
+thickness = 2 * 10 ** -3 # Thickness of the globe shell [m]
+epsilon = 0.95  # Emissivity of black paint
 
-rho = 8960  # Density of the globe (copper) [kg/m3]
+# rho = 8960  # Density of the globe (copper) [kg/m3]
+rho = 1100  # Density of the globe (PLA) [kg/m3]
 
-c = 384 # Specific heat capacity of the globe (copper) [J/kg*K]
+# c = 384 # Specific heat capacity of the globe (copper) [J/kg*K]
+c = 1506 # Specific heat capacity of the globe (PLA) [J/kg*K]
 
-D = 150 * 10 ** -3  # Diameter of the shell [m]
+D = 40 * 10 ** -3  # Diameter of the shell [m]
 V = quad(lambda r: 4 * np.pi * r ** 2, (D - thickness)/2, D/2)[0] # Volume of the globe [m3]
 A = 4 * np.pi * (D/2) ** 2 # Surface area of the globe [m2]
 h = lambda t: (6.3 * V_a(t) ** 0.6) / (D ** 0.4) # Forced convective heat transfer coefficient (McAdams) [J/s*m^2*K]
@@ -90,29 +93,36 @@ estimated_mrt = np.array([grey_body_MRT_estimate(sol.y[0][i], h(t), T_a(t), epsi
 
 # SMOOTHING: We apply spline smoothing based on the GCV criterion
 h_spline = make_smoothing_spline(t_eval, [noisy_h(i) for i in range(len(t_eval))], w)
-tau = lambda index: (constant - 0) / ((A + 0.0) * (4 * (epsilon - 0.0) * sigma * np.mean(estimated_mrt) ** 3 + h_spline(t_eval[index])))
-alpha = lambda index: 1 - np.exp(-((t_eval[1] - t_eval[0]) / tau(index)))
+tau = lambda k: constant / (A * (4 * epsilon * sigma * np.mean(empirical_data) ** 3 + h_spline(t_eval[k])))
+alpha = lambda k: 1 - np.exp(-((t_eval[1] - t_eval[0]) / tau(k)))
 
-smooth_func = make_smoothing_spline(sol.t, empirical_data, w, lam=150)
+smooth_func = make_smoothing_spline(sol.t, empirical_data, w)
 smooth_estimated_mrt = smooth_func(sol.t)
-
-# CONFIDENCE INTERVAL (estimate): We'll bootstrap residual to find the upper and lower bands were 95% of the true function lays
-lower_estimate, upper_estimate = spline_bootstrapping_residuals(sol.t, empirical_data, 400)
-outside_estimate = 0
-inside_estimate = 0
-
-for l, u, e in zip(lower_estimate, upper_estimate, estimated_mrt):
-    if e < l or e > u:
-        outside_estimate += 1
-        # print(f"Estimated MRT {e:.2f} is outside the confidence interval [{l:.2f}, {u:.2f}], outside: {outside_estimate}")
-    else:
-        inside_estimate += 1
-        # print(f"Estimated MRT {e:.2f} is inside the confidence interval [{l:.2f}, {u:.2f}], inside: {inside_estimate}")
-
-print(inside_estimate / n)
 
 # INVERSE EXPONENTIAL SMOOTHING: We recover the true mrt by inversing the exponential smoothing on the empirical data, and spline smoothing the result
 inverse_smoothed_mrt = inverse_exponential_smoothing(smooth_estimated_mrt, alpha, t_eval)
+
+# FINITE DIFFERENCE APPROXIMATION: If we numerically estimate the derivative at each point we can find the T_mrt
+smooth_T_g = make_smoothing_spline(t_eval, noisy_T_g, w)
+smooth_T_a = make_smoothing_spline(t_eval, noisy_T_a, w)
+derivatives = derivative(smooth_T_g, t_eval)
+finite_diff_mrt = []
+
+for dT_g, T_g, T_a, h in zip(derivatives.df, smooth_T_g(t_eval), smooth_T_a(t_eval), h_spline(t_eval)):
+    point = np.float_power(((dT_g * constant / A) + epsilon * sigma * T_g ** 4 + h * (T_g - T_a)) / (epsilon * sigma), 1/4)
+    finite_diff_mrt.append(point)
+
+finite_diff_mrt = np.array(finite_diff_mrt)
+
+e1 = np.mean(np.absolute(true_mrt - inverse_smoothed_mrt))
+e2 = np.mean(np.absolute(true_mrt - finite_diff_mrt))
+
+if e1 < e2:
+    print(f"Error inverse smoothing (T_0 around MRT): {e1} [best]")
+    print(f"Error finite difference: {e2}")
+else:
+    print(f"Error inverse smoothing (T_0 around MRT): {e1}")
+    print(f"Error finite difference: {e2} [best]")
 
 # PLOT RESULTS
 left = [
@@ -135,11 +145,11 @@ fig.tight_layout(pad=2.5)
 
 # axis[0].set_ylim(292, 344)
 axis["Sim"].scatter(sol.t / 60, empirical_data, alpha=0.7, s=3.5, label="Empirical Data", lw=2)
-axis["Sim"].fill_between(sol.t / 60, lower_estimate, upper_estimate, color="lightblue", label="95% Confidence Interval", lw=2.5)
+# axis["Sim"].fill_between(sol.t / 60, lower_estimate, upper_estimate, color="lightblue", label="95% Confidence Interval", lw=2.5)
 axis["Sim"].plot(sol.t / 60, smooth_estimated_mrt, color="blue", label="Smoothing Spline", lw=2.5)
 # axis[0].plot(sol.t, estimated_mrt, color="black", label="Target Function (Estimate)")
-# axis["Sim"].plot(t_eval[1:] / 60, smooth_recovered_mrt[1:], label="Recovered MRT", color="red", lw=2.5)
-axis["Sim"].plot(t_eval[1:] / 60, inverse_smoothed_mrt[1:], label="Recovered MRT", color="green", lw=2.5)
+axis["Sim"].plot(t_eval / 60, inverse_smoothed_mrt, label="Recovered MRT", color="red", lw=2.5)
+# axis["Sim"].plot(t_eval[1:] / 60, s[1:], label="Recovered s", color="green", lw=2.5)
 axis["Sim"].set_ylabel('Temperature (K)')
 axis["Sim"].set_title('Recovered MRT from Simulated Empirical Data')
 axis["Sim"].grid()
@@ -148,10 +158,10 @@ axis["Sim"].legend()
 axis["Tar"].plot(t_eval / 60, true_mrt, color="black", label="Target Function (True MRT)", lw=2.5)
 axis["Tar"].plot(t_eval / 60, estimated_mrt, color="grey", label="Target Function (Estimate)", lw=2.5)
 # axis[1].fill_between(sol.t / 60, lower_recovered, upper_recovered, color="lightcoral", label="95% Confidence Interval")
-axis["Tar"].fill_between(sol.t / 60, lower_estimate, upper_estimate, color="lightblue", label="95% Confidence Interval")
-axis["Tar"].plot(t_eval[1:] / 60, inverse_smoothed_mrt[1:], label="Recovered MRT", color="green", lw=2.5, linestyle="dashed")
+# axis["Tar"].fill_between(sol.t / 60, lower_estimate, upper_estimate, color="lightblue", label="95% Confidence Interval")
+axis["Tar"].plot(t_eval / 60, finite_diff_mrt, color="green", lw=2.5, label="Recovered MRT (finite difference)")
 axis["Tar"].plot(sol.t / 60, smooth_estimated_mrt, color="blue", label="Smoothing Spline", lw=2.5, linestyle="dashed")
-# axis["Tar"].plot(t_eval[1:] / 60, smooth_recovered_mrt[1:], label="Recovered MRT", color="red", lw=2.5, linestyle="dashed")
+axis["Tar"].plot(t_eval / 60, inverse_smoothed_mrt, label="Recovered MRT (inverse smoothing)", color="red", lw=2.5, linestyle="dashed")
 axis["Tar"].grid()
 axis["Tar"].legend()
 axis["Tar"].set_xlabel("Time (min)")
@@ -174,5 +184,8 @@ axis["T_g"].grid()
 axis["T_g"].set_ylabel("Temperature (K)")
 axis["T_g"].set_xlabel("Time (min)")
 
-# fig.savefig("Inverse-Exponential-Smoothing-Algorithm.png", dpi=600)
+
+
+# plt.savefig("Inverse-Exponential-Smoothing-Algorithm.png", dpi=300)
+fig.savefig("Inverse-Exponential-Smoothing-Algorithm.png", dpi=600)
 plt.show()
