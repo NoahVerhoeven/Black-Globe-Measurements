@@ -31,7 +31,7 @@ def T_a(t):
 
 
 def MRT(t):
-    return 350
+    # return 350
     f_1 = lambda t: (2 * np.sin(t / 11) + 305) * L(t, 6 * 60)
     f_2 = lambda t: L(-t, -6 * 60) * (40 * np.sin((t - 450) / 250) + 317) * L(t, 17 * 60)
     f_3 = lambda t: L(-t, -17 * 60) * 325
