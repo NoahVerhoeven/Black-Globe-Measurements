@@ -15,21 +15,20 @@ import matplotlib as mpl
 mpl.rcParams['font.family'] = 'Times New Roman'
 
 minutes = 25
-n=minutes * 8
+n=minutes * 9
 t_eval = np.linspace(0, minutes*60, n)
 w = np.array([1/n] * n)
+
+# LOGISTIC FUNCTION
+def L(x, y):
+    try:
+        return 1 / (1 + np.pow(np.e, -10 * (y-x)))
+    except OverflowError:
+        return 0
 
 # UNDERLYING FUNCTIONS: These are the 'functions' which we'll measure in the field
 def V_a(t):
     return np.sin(t/80) + 3.5
-    V_2 = lambda t: (t - 500) / 20 + 3.5
-    if t <= 500:
-        return 3.5
-    elif t <= 515:
-        return V_2(t)
-    else:
-        return V_2(515)
-        # return - np.e ** (-(t - 350)) / 2 + 4
 
 
 def T_a(t):
@@ -37,29 +36,19 @@ def T_a(t):
 
 
 def MRT(t):
-    # return 400
-    t_1 = lambda t: 300.2 + np.cos(t/10)
-    t_2 = lambda t: 40 * np.sin((t - 400) / 200) + t_1(400)
-    t_3 = lambda t: np.exp(-t/850) + t_2(850) - np.exp(-801/850)
+    # return 350
+    f_1 = lambda t: (2 * np.sin(t / 11) + 305) * L(t, 6 * 60)
+    f_2 = lambda t: L(-t, -6 * 60) * (40 * np.sin((t - 450) / 250) + 317) * L(t, 17 * 60)
+    f_3 = lambda t: L(-t, -17 * 60) * 325
 
-    if t <= 400:
-        return t_1(t)
-    elif t <= 850:
-        return t_2(t)
-    else:
-        return t_3(t)
-
+    return f_1(t) + f_2(t) + f_3(t)
 
 # CONSTANTS: We'll work with the shell-only simulation
 sigma = 5.67037 * 10 ** -8 # [J/s*m^2*K^4]
 thickness = 2 * 10 ** -3 # Thickness of the globe shell [m]
-epsilon = 0.95  # Emissivity of black paint
-
-# rho = 8960  # Density of the globe (copper) [kg/m3]
-rho = 1100  # Density of the globe (PLA) [kg/m3]
-
-# c = 384 # Specific heat capacity of the globe (copper) [J/kg*K]
-c = 1506 # Specific heat capacity of the globe (PLA) [J/kg*K]
+epsilon = 0.94  # Emissivity of black paint
+rho = 1240  # Density of the globe (PLA) [kg/m3]
+c = 1800 # Specific heat capacity of the globe (PLA) [J/kg*K]
 
 D = 40 * 10 ** -3  # Diameter of the shell [m]
 V = quad(lambda r: 4 * np.pi * r ** 2, (D - thickness)/2, D/2)[0] # Volume of the globe [m3]
@@ -69,12 +58,11 @@ constant = c * rho * V # [J/K]
 
 args = np.array([h,  T_a, epsilon, constant, A])
 
-
 # TRUE MRT: This is the function we want to recover
 sol = solve_ivp(
     dTdt_shell_only,
     [t_eval[0], t_eval[-1]],
-    [T_a(0)],
+    [310], # T_g(0)
     args=(MRT, args),
     method="Radau",
     t_eval=t_eval
@@ -140,8 +128,7 @@ fig, axis = plt.subplot_mosaic(
     width_ratios=[1.25, 2],
     sharex=True
 )
-fig.suptitle("Inverse Exponential Smoothing Algorithm\nfor Recovering True MRT from Mobile Measurements", fontsize=18, fontweight="bold")
-fig.tight_layout(pad=2.5)
+
 
 # axis[0].set_ylim(292, 344)
 axis["Sim"].scatter(sol.t / 60, empirical_data, alpha=0.7, s=3.5, label="Empirical Data", lw=2)
@@ -184,8 +171,7 @@ axis["T_g"].grid()
 axis["T_g"].set_ylabel("Temperature (K)")
 axis["T_g"].set_xlabel("Time (min)")
 
+fig.suptitle("Inverse Exponential Smoothing Algorithm\nfor Recovering True MRT from Mobile Measurements", fontsize=18, fontweight="bold")
+fig.savefig("Inverse-Exponential-Smoothing-Algorithm.png", dpi=300)
 
-
-# plt.savefig("Inverse-Exponential-Smoothing-Algorithm.png", dpi=300)
-fig.savefig("Inverse-Exponential-Smoothing-Algorithm.png", dpi=600)
 plt.show()
