@@ -8,7 +8,8 @@ from .mrt_recovery import (
     moving_average_matrix,
     recovery_error,
     recover_mrt,
-    optimize_recovery
+    optimize_recovery,
+    inverse_exponential_smoothing
 )
 
 

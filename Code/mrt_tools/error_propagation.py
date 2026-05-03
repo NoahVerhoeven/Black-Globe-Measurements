@@ -41,14 +41,13 @@ def get_mrt_error(
 
 
 def spline_bootstrapping_residuals(t_eval, y, n_boot=400):
-    spline = make_smoothing_spline(t_eval, y)
-    y_hat = spline(t_eval)
+    y_hat = make_smoothing_spline(t_eval, y)(t_eval)
     residuals = y - y_hat
 
     n = len(t_eval)
     w = np.array([1/n] * n)
     
-    fits = []
+    fits = [y_hat]
     
     for _ in range(n_boot):
         resampled = np.random.choice(residuals, size=len(y), replace=True)
