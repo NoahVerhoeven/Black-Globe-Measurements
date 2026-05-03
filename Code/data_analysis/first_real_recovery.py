@@ -19,15 +19,15 @@ plt.rc('legend',fontsize=11.5)
 data_dict2 = {
     "B2": {
         "CSV": pd.read_csv("Data\\globe_temperature_test\\B2.CSV"),
-        "epsilon": 0.77,
-        "rho": 1250,
+        "epsilon": 0.94,
+        "rho": 1240,
         "heat capacity": 1800,
         "diameter": 40 * 10 ** -3,
         "thickness": 2 * 10 ** -3
     },
     "BP": {
         "CSV": pd.read_csv("Data\\globe_temperature_test\\BP.CSV"),
-        "epsilon": 0.84,
+        "epsilon": 0.96,
         "rho": 1100,
         "heat capacity": 1506,
         "diameter": 40 * 10 ** -3,
@@ -35,23 +35,23 @@ data_dict2 = {
     },
     "G1": {
         "CSV": pd.read_csv("Data\\globe_temperature_test\\G1.CSV"),
-        "epsilon": 0.74,
-        "rho": 1250,
+        "epsilon": 0.9,
+        "rho": 1240,
         "heat capacity": 1800,
         "diameter": 40 * 10 ** -3,
         "thickness": 1 * 10 ** -3
     },
     "G2": {
         "CSV": pd.read_csv("Data\\globe_temperature_test\\G2.CSV"),
-        "epsilon": 0.77,
-        "rho": 1250,
+        "epsilon": 0.9,
+        "rho": 1240,
         "heat capacity": 1800,
         "diameter": 40 * 10 ** -3,
         "thickness": 2 * 10 ** -3
     },
     "GP": {
         "CSV": pd.read_csv("Data\\globe_temperature_test\\GP.CSV"),
-        "epsilon": 0.62,
+        "epsilon": 0.93,
         "rho": 1100,
         "heat capacity": 1506,
         "diameter": 40 * 10 ** -3,
@@ -59,23 +59,23 @@ data_dict2 = {
     },
     "S1": {
         "CSV": pd.read_csv("Data\\globe_temperature_test\\S1.CSV"),
-        "epsilon": 0.69,
-        "rho": 1250,
+        "epsilon": 0.85,
+        "rho": 1240,
         "heat capacity": 1800,
         "diameter": 40 * 10 ** -3,
         "thickness": 1 * 10 ** -3
     },
     "S2": {
         "CSV": pd.read_csv("Data\\globe_temperature_test\\S2.CSV"),
-        "epsilon": 0.66,
-        "rho": 1250,
+        "epsilon": 0.85,
+        "rho": 1240,
         "heat capacity": 1800,
         "diameter": 40 * 10 ** -3,
         "thickness": 2 * 10 ** -3
     },
     "Reference": {
         "CSV": pd.read_csv("Data\\globe_temperature_test\\Reference.CSV"),
-        "epsilon": 0.94,
+        "epsilon": 0.98,
         "rho": 8960,
         "heat capacity": 384,
         "diameter": 150 * 10 ** -3,
@@ -282,4 +282,4 @@ for device in data_dict2.keys():
     axis["T_g"].set_xlabel("Time (min)")
 
     fig.savefig(f"Globe-Test-Recovery-{device}.png", dpi=600)
-plt.show()
+# plt.show()
